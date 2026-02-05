@@ -10,13 +10,13 @@ from plotter import plot_2d_traj
 
 
 class Controller:
-    executor: MultiThreadedExecutor = None
-    thread: threading.Thread = None
+    executor: MultiThreadedExecutor
+    thread: threading.Thread
     _nodes: List[Node]
 
     def __init__(self):
         self.executor = MultiThreadedExecutor()
-        self._nodes: List[Node] = []
+        self._nodes = []
 
     def register(
         self, topic: str, name: str = "", pose: bool = False, negate: bool = False

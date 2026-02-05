@@ -1,17 +1,32 @@
 from dataclasses import dataclass
 from typing import Union, Callable, override
+from rclpy.time import Time
 from rclpy.node import Node
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped
 from nav_msgs.msg import Odometry
 from threading import Lock
 
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
+
 
 @dataclass
-class SubscriberModel:
+class NodeModel:
+    node_name: str
+
+
+@dataclass
+class SubscriberModel(NodeModel):
     topic: str
-    msg_type: Union[PoseWithCovarianceStamped, Odometry]
-    node_name: str = "subscriber_node"
-    negate_xy: bool = False  # Negate both x and y if True
+    msg_type: Callable
+    negate_xy: bool = False
+
+
+@dataclass
+class TransformSubscriberModel(NodeModel):
+    target_frame: str
+    source_frame: str
 
 
 @dataclass
@@ -27,6 +42,7 @@ class OdometrySubscriberModel(SubscriberModel):
 class Subscriber(Node):
     def __init__(self, model: SubscriberModel):
         self.model = model
+        self.negate_xy = getattr(model, 'negate_xy', False)
         self.x = []
         self.y = []
         super().__init__(model.node_name)
@@ -44,7 +60,7 @@ class Subscriber(Node):
             )
             return None
 
-    def run_callback(self, msg: Union[PoseWithCovarianceStamped, Odometry]):
+    def run_callback(self, msg):
         raise NotImplementedError
 
     def get_trajectory_data(self):
@@ -107,6 +123,51 @@ class OdometrySubscriber(Subscriber):
             self.update_data(pose)
         if twist:
             self.get_logger().debug(f"Linear: {twist.linear}, Angular: {twist.angular}")
+
+
+class TransformSubscriber(Node):
+    def __init__(
+        self,
+        target_frame: str,
+        source_frame: str,
+        node_name: str = "transform_subscriber",
+    ):
+        self.model = TransformSubscriberModel(
+            node_name=node_name,
+            target_frame=target_frame,
+            source_frame=source_frame,
+        )
+        super().__init__(node_name)
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.timer = self.create_timer(0.5, self.cb_timer)
+
+    def cb_timer(self):
+        from_frame = self.model.source_frame
+        to_frame = self.model.target_frame
+        current_time = Time()
+
+        try:
+            tf_data = self.tf_buffer.lookup_transform(
+                to_frame,
+                from_frame,
+                current_time,
+            )
+            translation = tf_data.transform.translation
+            rotation = tf_data.transform.rotation
+            self.get_logger().info(
+                f'Translation: x={translation.x:.2f}, y={translation.y:.2f}, z={translation.z:.2f} | '
+                f'Rotation: x={rotation.x:.2f}, y={rotation.y:.2f}, z={rotation.z:.2f}, w={rotation.w:.2f}'
+            )
+            self.cb_data_process(tf_data)
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {to_frame} to {from_frame}: {ex}'
+            )
+            return
+
+    def cb_data_process(self, tf_data: TransformStamped):
+        pass
 
 
 def get_position(pose):
