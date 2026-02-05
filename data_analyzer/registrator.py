@@ -42,7 +42,7 @@ class OdometrySubscriberModel(SubscriberModel):
 class Subscriber(Node):
     def __init__(self, model: SubscriberModel):
         self.model = model
-        self.negate_xy = getattr(model, 'negate_xy', False)
+        self.negate_xy = getattr(model, "negate_xy", False)
         self.x = []
         self.y = []
         super().__init__(model.node_name)
@@ -156,13 +156,13 @@ class TransformSubscriber(Node):
             translation = tf_data.transform.translation
             rotation = tf_data.transform.rotation
             self.get_logger().info(
-                f'Translation: x={translation.x:.2f}, y={translation.y:.2f}, z={translation.z:.2f} | '
-                f'Rotation: x={rotation.x:.2f}, y={rotation.y:.2f}, z={rotation.z:.2f}, w={rotation.w:.2f}'
+                f"Translation: x={translation.x:.2f}, y={translation.y:.2f}, z={translation.z:.2f} | "
+                f"Rotation: x={rotation.x:.2f}, y={rotation.y:.2f}, z={rotation.z:.2f}, w={rotation.w:.2f}"
             )
             self.cb_data_process(tf_data)
         except TransformException as ex:
             self.get_logger().info(
-                f'Could not transform {to_frame} to {from_frame}: {ex}'
+                f"Could not transform {to_frame} to {from_frame}: {ex}"
             )
             return
 

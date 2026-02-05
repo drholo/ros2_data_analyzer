@@ -9,19 +9,17 @@ from registrator import TransformSubscriber
 
 
 class PathPublisher(TransformSubscriber):
-    def __init__(
-            self,
-            base_frame='base_link',
-            target_frame='map',
-            publish_path=False):
-        super().__init__(target_frame=target_frame,
-                         source_frame=base_frame,
-                         node_name='path_publisher')
-        
+    def __init__(self, base_frame="base_link", target_frame="map", publish_path=False):
+        super().__init__(
+            target_frame=target_frame,
+            source_frame=base_frame,
+            node_name="path_publisher",
+        )
+
         self.publish_path = publish_path
         self.path_msg = Path()
-        self.path_publisher = self.create_publisher(Path, 'tracked_path', 10)
-    
+        self.path_publisher = self.create_publisher(Path, "tracked_path", 10)
+
     def cb_data_process(self, tf_data):
         self.update_path(tf_data)
         if self.publish_path:
@@ -38,7 +36,7 @@ class PathPublisher(TransformSubscriber):
         self.path_msg.header = tf_data.header
         self.path_msg.poses.append(pose)
 
-        self.get_logger().info(f'Path length: {len(self.path_msg.poses)}')
+        self.get_logger().info(f"Path length: {len(self.path_msg.poses)}")
 
 
 def main():
@@ -46,35 +44,32 @@ def main():
     parser.add_argument(
         "-b",
         "--base_frame",
-        help=(
-            "Base frame to listen for transforms (default: 'base_link')"
-        ),
-        default='base_link',
-        required=False
+        help=("Base frame to listen for transforms (default: 'base_link')"),
+        default="base_link",
+        required=False,
     )
     parser.add_argument(
         "-t",
         "--target_frame",
-        help=(
-            "Target frame to listen for transforms (default: 'map')"
-        ),
-        default='map',
-        required=False
+        help=("Target frame to listen for transforms (default: 'map')"),
+        default="map",
+        required=False,
     )
     parser.add_argument(
         "--publish_path",
-        action='store_true',
-        help="Publish the path based on the transforms"
+        action="store_true",
+        help="Publish the path based on the transforms",
     )
     args = parser.parse_args()
 
-
     print("Starting frame listener node...")
     rclpy.init()
-    path_publisher = PathPublisher(args.base_frame, args.target_frame, args.publish_path)
-    path_publisher.get_logger().info('Starting frame listener node')
+    path_publisher = PathPublisher(
+        args.base_frame, args.target_frame, args.publish_path
+    )
+    path_publisher.get_logger().info("Starting frame listener node")
     if args.publish_path:
-        path_publisher.get_logger().info('Path publishing enabled')
+        path_publisher.get_logger().info("Path publishing enabled")
     try:
         rclpy.spin(path_publisher)
     except KeyboardInterrupt:
@@ -82,5 +77,5 @@ def main():
     rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
