@@ -1,10 +1,8 @@
 import argparse
 
 import rclpy
-
-from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
-
+from nav_msgs.msg import Path
 from registrator import TransformSubscriber
 
 
