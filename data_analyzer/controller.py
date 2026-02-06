@@ -1,12 +1,12 @@
+import argparse
+import threading
+from typing import List
+
+import rclpy
+from plotter import plot_2d_traj
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from typing import List
-import rclpy
-import threading
-import argparse
-
-from registrator import PoseSubscriber, OdometrySubscriber
-from plotter import plot_2d_traj
+from registrator import OdometrySubscriber, PoseSubscriber
 
 
 class Controller:
@@ -16,7 +16,7 @@ class Controller:
 
     def __init__(self):
         self.executor = MultiThreadedExecutor()
-        self._nodes: List[Node] = []
+        self._nodes = []
 
     def register(
         self, topic: str, name: str = "", pose: bool = False, negate: bool = False
