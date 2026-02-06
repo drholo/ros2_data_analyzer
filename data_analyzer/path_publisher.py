@@ -7,7 +7,7 @@ from registrator import TransformSubscriber
 
 
 class PathPublisher(TransformSubscriber):
-    def __init__(self, base_frame="base_link", target_frame="map", publish_path=False):
+    def __init__(self, target_frame="map", base_frame="base_link", publish_path=False):
         super().__init__(
             target_frame=target_frame,
             source_frame=base_frame,
@@ -71,7 +71,7 @@ def main():
     try:
         rclpy.spin(path_publisher)
     except KeyboardInterrupt:
-        pass
+        path_publisher.get_logger().info("Shutting down due to KeyboardInterrupt")
     rclpy.shutdown()
 
 

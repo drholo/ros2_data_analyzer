@@ -10,8 +10,8 @@ from registrator import OdometrySubscriber, PoseSubscriber
 
 
 class Controller:
-    executor: MultiThreadedExecutor
-    thread: threading.Thread
+    executor: MultiThreadedExecutor = None
+    thread: threading.Thread = None
     _nodes: List[Node]
 
     def __init__(self):

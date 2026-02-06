@@ -19,7 +19,7 @@ class NodeModel:
 @dataclass
 class SubscriberModel(NodeModel):
     topic: str
-    msg_type: Callable
+    msg_type: Type[Union[PoseWithCovarianceStamped, Odometry]]
     negate_xy: bool = False
 
 
@@ -42,7 +42,6 @@ class OdometrySubscriberModel(SubscriberModel):
 class Subscriber(Node):
     def __init__(self, model: SubscriberModel):
         self.model = model
-        self.negate_xy = getattr(model, "negate_xy", False)
         self.x = []
         self.y = []
         super().__init__(model.node_name)
@@ -162,7 +161,7 @@ class TransformSubscriber(Node):
             self.cb_data_process(tf_data)
         except TransformException as ex:
             self.get_logger().info(
-                f"Could not transform {to_frame} to {from_frame}: {ex}"
+                f"Could not transform {from_frame} to {to_frame}: {ex}"
             )
             return
 
