@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from threading import Lock
-from typing import Callable, Type, Union, override
+from typing import Type, Union, override
 
 from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped
 from nav_msgs.msg import Odometry
@@ -19,7 +19,7 @@ class NodeModel:
 @dataclass
 class SubscriberModel(NodeModel):
     topic: str
-    msg_type: Type[Union[PoseWithCovarianceStamped, Odometry]]
+    msg_type: Type
     negate_xy: bool = False
 
 
@@ -31,12 +31,12 @@ class TransformSubscriberModel(NodeModel):
 
 @dataclass
 class PoseSubscriberModel(SubscriberModel):
-    msg_type = PoseWithCovarianceStamped
+    msg_type: Type[PoseWithCovarianceStamped] = field(default=PoseWithCovarianceStamped)
 
 
 @dataclass
 class OdometrySubscriberModel(SubscriberModel):
-    msg_type = Odometry
+    msg_type: Type[Odometry] = field(default=Odometry)
 
 
 class Subscriber(Node):
