@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from threading import Lock
-from typing import Callable, Union, override
+from typing import Callable, Type, Union, override
 
 from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped
 from nav_msgs.msg import Odometry
@@ -31,12 +31,12 @@ class TransformSubscriberModel(NodeModel):
 
 @dataclass
 class PoseSubscriberModel(SubscriberModel):
-    msg_type: Callable = PoseWithCovarianceStamped
+    msg_type = PoseWithCovarianceStamped
 
 
 @dataclass
 class OdometrySubscriberModel(SubscriberModel):
-    msg_type: Callable = Odometry
+    msg_type = Odometry
 
 
 class Subscriber(Node):
