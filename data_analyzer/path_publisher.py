@@ -7,7 +7,13 @@ from registrator import TransformSubscriber
 
 
 class PathPublisher(TransformSubscriber):
-    def __init__(self, target_frame="map", base_frame="base_link", publish_path=False):
+    def __init__(
+        self,
+        target_frame="map",
+        base_frame="base_link",
+        publish_path=False,
+        path_topic="tracked_path",
+    ):
         super().__init__(
             target_frame=target_frame,
             source_frame=base_frame,
@@ -15,8 +21,9 @@ class PathPublisher(TransformSubscriber):
         )
 
         self.publish_path = publish_path
+        self.path_topic = path_topic
         self.path_msg = Path()
-        self.path_publisher = self.create_publisher(Path, "tracked_path", 10)
+        self.path_publisher = self.create_publisher(Path, self.path_topic, 10)
 
     def cb_data_process(self, tf_data):
         self.update_path(tf_data)
@@ -58,12 +65,18 @@ def main():
         action="store_true",
         help="Publish the path based on the transforms",
     )
+    parser.add_argument(
+        "--path_topic",
+        help=("Topic name to publish the path (default: 'tracked_path')"),
+        default="tracked_path",
+        required=False,
+    )
     args = parser.parse_args()
 
     print("Starting frame listener node...")
     rclpy.init()
     path_publisher = PathPublisher(
-        args.base_frame, args.target_frame, args.publish_path
+        args.base_frame, args.target_frame, args.publish_path, args.path_topic
     )
     path_publisher.get_logger().info("Starting frame listener node")
     if args.publish_path:
