@@ -6,6 +6,7 @@ import rclpy
 from plotter import plot_2d_traj
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from ros2topic.api import get_msg_class
 from registrator import OdometrySubscriber, PoseSubscriber
 
 
@@ -27,6 +28,7 @@ class Controller:
             _node = PoseSubscriber(topic=topic, node_name=name, negate_xy=negate)
         else:
             _node = OdometrySubscriber(topic=topic, node_name=name, negate_xy=negate)
+        
         self._nodes.append(_node)
         self.executor.add_node(_node)
 
@@ -82,6 +84,13 @@ def main():
             controller.register(topic, name)
 
     controller.run()
+
+    print("TOPICS:")
+    for _node in controller.nodes:
+        topic = _node.model.topic
+        t_topic = get_msg_class(_node, topic)
+        _node.get_logger().info(f"Registered node '{_node.get_name()}' for topic '{topic}'. topic type: {t_topic}")
+
     plot_2d_traj(controller.nodes)
 
     rclpy.shutdown()
