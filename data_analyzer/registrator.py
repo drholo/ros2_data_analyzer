@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
+from enum import Enum
 from threading import Lock
 from typing import Type, Union, override
 
-from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped, PoseWithCovariance
+from nav_msgs.msg import Odometry, Path
 from rclpy.node import Node
 from rclpy.time import Time
 from tf2_ros import TransformException
@@ -26,6 +27,14 @@ class SubscriberModel(NodeModel):
 class TransformSubscriberModel(NodeModel):
     target_frame: str
     source_frame: str
+    timer: float = 0.1
+
+
+class SupportedMsgType(Enum):
+    Odometry = "nav_msgs/msg/Odometry"
+    PoseWithCovarianceStamped = "geometry_msgs/msg/PoseWithCovarianceStamped"
+    PoseWithCovariance = "geometry_msgs/msg/PoseWithCovariance"
+    Path = "nav_msgs/msg/Path"
 
 
 @dataclass
@@ -41,25 +50,34 @@ class OdometrySubscriberModel(SubscriberModel):
 class Subscriber(Node):
     def __init__(self, model: SubscriberModel):
         self.model = model
-        self.x = []
-        self.y = []
         super().__init__(model.node_name)
         self.subscription = self.create_subscription(
-            model.msg_type, model.topic, self.run_callback, 10
+            model.msg_type, model.topic, self.run_callback, 20
         )
         self._lock = Lock()
+
+    def run_callback(self, msg):
+        raise NotImplementedError
+    
+
+class PoseSubscriber(Subscriber):
+    def __init__(self, model: SubscriberModel):
+        self.x = []
+        self.y = []
+        super().__init__(model=model)
 
     def get_pose(self, msg):
         if isinstance(msg, PoseWithCovarianceStamped) or isinstance(msg, Odometry):
             return msg.pose.pose
+        if isinstance(msg, PoseWithCovariance):
+            return msg.pose
+        if isinstance(msg, Path):
+            return msg.poses[-1].pose 
         else:
             self.get_logger().error(
-                "Message is not of type PoseWithCovarianceStamped or Odometry"
+                f"Message is not of supported type: [{", ".join(enum.name for enum in SupportedMsgType)}]"
             )
             return None
-
-    def run_callback(self, msg):
-        raise NotImplementedError
 
     def get_trajectory_data(self):
         with self._lock:
@@ -67,20 +85,13 @@ class Subscriber(Node):
 
     def update_data(self, pose):
         with self._lock:
-            x, y, z = get_coordinates(pose)
-            self.get_logger().debug(f"Coordinates: {x} {y} {z}")
+            x, y, _ = get_coordinates(pose)
+            self.get_logger().debug(f"Coordinates: {x} {y}")
             self.x.append(x)
             self.y.append(y)
 
-
-class PoseSubscriber(Subscriber):
-    def __init__(self, topic: str, node_name: str = ""):
-        super().__init__(
-            PoseSubscriberModel(topic=topic, node_name=node_name)
-        )
-
     @override
-    def run_callback(self, msg: PoseWithCovarianceStamped):
+    def run_callback(self, msg):
         pose = self.get_pose(msg)
         if pose:
             self.get_logger().debug(
@@ -92,32 +103,52 @@ class PoseSubscriber(Subscriber):
             self.update_data(pose)
 
 
-class OdometrySubscriber(Subscriber):
-    def __init__(self, topic: str, node_name: str = ""):
-        super().__init__(
-            OdometrySubscriberModel(
-                topic=topic, node_name=node_name
+class PathSubscriber(Subscriber):
+    def __init__(self, model: SubscriberModel):
+        super().__init__(model=model)
+    
+    def get_path(self, msg):
+        if isinstance(msg, Path):
+            return msg.poses
+        else:
+            self.get_logger().error(
+                f"Message is not of supported type: [{Path}]"
             )
-        )
-
-    def get_twist(self, msg):
-        return msg.twist.twist
 
     @override
     def run_callback(self, msg: Odometry):
         self.get_logger().debug(
             f"Received {self.model.msg_type.__name__} message from topic {self.model.topic}"
         )
-        twist = self.get_twist(msg)
-        pose = self.get_pose(msg)
-        if pose:
-            self.get_logger().debug(
-                f"Position: {get_position(pose)}, Orientation: {get_orientation(pose)}"
-            )
-            self.update_data(pose)
-        if twist:
-            self.get_logger().debug(f"Linear: {twist.linear}, Angular: {twist.angular}")
+    # TODO: add path processing
 
+
+def create_pose_subscriber(
+    topic: str,
+    msg_type: Type = None,
+    node_name: str = "",
+) -> PoseSubscriber:
+    if not node_name:
+        node_name = topic.replace("/", "_") + "_subscriber"
+    
+    if not msg_type:
+        msg_type = get_msg_type(topic)
+    
+    if msg_type in SupportedMsgType:
+        return PoseSubscriber(
+            SubscriberModel(
+                node_name=node_name,
+                topic=topic,
+                msg_type=msg_type
+            )
+        )
+    raise ValueError(
+        f"Unsupported message type. Should be one of [{", ".join(enum.name for enum in SupportedMsgType)}]"
+    )
+
+
+def get_msg_type(topic: str):
+    return PoseWithCovarianceStamped
 
 class TransformSubscriber(Node):
     def __init__(

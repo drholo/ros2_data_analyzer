@@ -6,7 +6,7 @@ import rclpy
 from plotter import plot_2d_traj
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from registrator import OdometrySubscriber, PoseSubscriber
+from registrator import create_pose_subscriber
 
 
 class Controller:
@@ -23,10 +23,12 @@ class Controller:
     ):
         if not name:
             name = topic.replace("/", "_")
-        if pose:
-            _node = PoseSubscriber(topic=topic, node_name=name)
-        else:
-            _node = OdometrySubscriber(topic=topic, node_name=name)
+        
+        _node = create_pose_subscriber(topic)
+        # if pose:
+        #     _node = PoseSubscriber(topic=topic, node_name=name)
+        # else:
+        #     _node = OdometrySubscriber(topic=topic, node_name=name)
         self._nodes.append(_node)
         self.executor.add_node(_node)
 
