@@ -19,14 +19,14 @@ class Controller:
         self._nodes = []
 
     def register(
-        self, topic: str, name: str = "", pose: bool = False, negate: bool = False
+        self, topic: str, name: str = "", pose: bool = False
     ):
         if not name:
             name = topic.replace("/", "_")
         if pose:
-            _node = PoseSubscriber(topic=topic, node_name=name, negate_xy=negate)
+            _node = PoseSubscriber(topic=topic, node_name=name)
         else:
-            _node = OdometrySubscriber(topic=topic, node_name=name, negate_xy=negate)
+            _node = OdometrySubscriber(topic=topic, node_name=name)
         self._nodes.append(_node)
         self.executor.add_node(_node)
 
@@ -76,10 +76,7 @@ def main():
     controller = Controller()
 
     for topic, name in topics.items():
-        if name == "world":
-            controller.register(topic, "simulator", negate=True)
-        else:
-            controller.register(topic, name)
+        controller.register(topic, name)
 
     controller.run()
     plot_2d_traj(controller.nodes)

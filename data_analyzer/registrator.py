@@ -20,7 +20,6 @@ class NodeModel:
 class SubscriberModel(NodeModel):
     topic: str
     msg_type: Type
-    negate_xy: bool = False
 
 
 @dataclass
@@ -69,19 +68,15 @@ class Subscriber(Node):
     def update_data(self, pose):
         with self._lock:
             x, y, z = get_coordinates(pose)
-            # if simulator data
-            if self.model.negate_xy:
-                x = -x
-                y = -y
             self.get_logger().debug(f"Coordinates: {x} {y} {z}")
             self.x.append(x)
             self.y.append(y)
 
 
 class PoseSubscriber(Subscriber):
-    def __init__(self, topic: str, node_name: str = "", negate_xy: bool = False):
+    def __init__(self, topic: str, node_name: str = ""):
         super().__init__(
-            PoseSubscriberModel(topic=topic, node_name=node_name, negate_xy=negate_xy)
+            PoseSubscriberModel(topic=topic, node_name=node_name)
         )
 
     @override
@@ -98,10 +93,10 @@ class PoseSubscriber(Subscriber):
 
 
 class OdometrySubscriber(Subscriber):
-    def __init__(self, topic: str, node_name: str = "", negate_xy: bool = False):
+    def __init__(self, topic: str, node_name: str = ""):
         super().__init__(
             OdometrySubscriberModel(
-                topic=topic, node_name=node_name, negate_xy=negate_xy
+                topic=topic, node_name=node_name
             )
         )
 
