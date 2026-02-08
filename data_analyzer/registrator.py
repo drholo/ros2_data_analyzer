@@ -137,7 +137,10 @@ def create_pose_subscriber(
         node_name = topic.replace("/", "_") + "_subscriber"
 
     if not msg_type:
-        msg_type = get_msg_type(topic)
+        try:
+            msg_type = get_msg_type(topic)
+        except ValueError as err:
+            msg_type = Odometry
 
     if msg_type in SUPPORTED_MSG_TYPES.values():
         return PoseSubscriber(
