@@ -61,6 +61,17 @@ class Subscriber(Node):
         )
         self._lock = Lock()
 
+    def __repr__(self):
+        return self.name
+
+    @property
+    def name(self):
+        return self.model.node_name
+
+    @property
+    def topic(self):
+        return self.model.topic
+
     def run_callback(self, msg):
         raise NotImplementedError
 
@@ -129,16 +140,14 @@ class PathSubscriber(Subscriber):
 
 
 def create_pose_subscriber(
-    topic: str,
-    msg_type: Type = None,
-    node_name: str = "",
+    topic: str, msg_type: Type = None, node_name: str = "", timeout: float = 1.0
 ) -> PoseSubscriber:
     if not node_name:
         node_name = topic.replace("/", "_") + "_subscriber"
 
     if not msg_type:
         try:
-            msg_type = get_msg_type(topic)
+            msg_type = get_msg_type(topic, timeout=timeout)
         except ValueError as err:
             msg_type = Odometry
 
@@ -152,20 +161,23 @@ def create_pose_subscriber(
     )
 
 
-def get_msg_type(topic: str, node: Optional[Node] = None) -> Type:
+def get_msg_type(topic: str, node: Optional[Node] = None, timeout: float = 1.0) -> Type:
     n_topic = topic if topic.startswith("/") else f"/{topic}"
     tmp_node = None
     if not node:
         tmp_node = Node("_tmp_topic_node")
         node = tmp_node
 
-    for _ in range(10):
-        spin_once(node, timeout_sec=0.5)
-
     matching_types = []
-    for t_name, t_types in node.get_topic_names_and_types():
-        if t_name == n_topic:
-            matching_types = t_types
+    iter_delay = 0.2  # secs between rechecks
+    for _ in range(int(timeout / iter_delay)):
+        spin_once(node, timeout_sec=iter_delay)
+
+        for t_name, t_types in node.get_topic_names_and_types():
+            if t_name == n_topic:
+                matching_types = t_types
+                break
+        if matching_types:
             break
 
     if tmp_node:
