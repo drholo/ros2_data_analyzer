@@ -30,11 +30,12 @@ class TransformSubscriberModel(NodeModel):
     timer: float = 0.1
 
 
-class SupportedMsgType(Enum):
-    Odometry = "nav_msgs/msg/Odometry"
-    PoseWithCovarianceStamped = "geometry_msgs/msg/PoseWithCovarianceStamped"
-    PoseWithCovariance = "geometry_msgs/msg/PoseWithCovariance"
-    Path = "nav_msgs/msg/Path"
+SUPPORTED_MSG_TYPES = {
+    "nav_msgs/msg/Odometry": Odometry,
+    "geometry_msgs/msg/PoseWithCovarianceStamped": PoseWithCovarianceStamped,
+    "geometry_msgs/msg/PoseWithCovariance": PoseWithCovariance,
+    "nav_msgs/msg/Path": Path,
+}
 
 
 @dataclass
@@ -75,7 +76,7 @@ class PoseSubscriber(Subscriber):
             return msg.poses[-1].pose 
         else:
             self.get_logger().error(
-                f"Message is not of supported type: [{", ".join(enum.name for enum in SupportedMsgType)}]"
+                f"Unsupported type of message. Should be one of: [{", ".join(SUPPORTED_MSG_TYPES.values())}]"
             )
             return None
 
@@ -134,7 +135,7 @@ def create_pose_subscriber(
     if not msg_type:
         msg_type = get_msg_type(topic)
     
-    if msg_type in SupportedMsgType:
+    if msg_type in SUPPORTED_MSG_TYPES.values():
         return PoseSubscriber(
             SubscriberModel(
                 node_name=node_name,
@@ -143,7 +144,7 @@ def create_pose_subscriber(
             )
         )
     raise ValueError(
-        f"Unsupported message type. Should be one of [{", ".join(enum.name for enum in SupportedMsgType)}]"
+        f"Unsupported message type. Should be one of [{", ".join(SUPPORTED_MSG_TYPES.keys())}]"
     )
 
 
