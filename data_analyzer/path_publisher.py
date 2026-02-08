@@ -9,8 +9,8 @@ from registrator import TransformSubscriber
 class PathPublisher(TransformSubscriber):
     def __init__(
         self,
-        target_frame="map",
-        base_frame="base_link",
+        target_frame="base_link",
+        base_frame="map",
         publish_path=False,
         path_topic="tracked_path",
     ):
@@ -41,7 +41,7 @@ class PathPublisher(TransformSubscriber):
         self.path_msg.header = tf_data.header
         self.path_msg.poses.append(pose)
 
-        self.get_logger().info(f"Path length: {len(self.path_msg.poses)}")
+        self.get_logger().debug(f"Path length: {len(self.path_msg.poses)}")
 
 
 def main():
@@ -49,15 +49,15 @@ def main():
     parser.add_argument(
         "-b",
         "--base_frame",
-        help=("Base frame to listen for transforms (default: 'base_link')"),
-        default="base_link",
+        help=("Base frame to listen for transforms (default: 'map')"),
+        default="map",
         required=False,
     )
     parser.add_argument(
         "-t",
         "--target_frame",
-        help=("Target frame to listen for transforms (default: 'map')"),
-        default="map",
+        help=("Target frame to listen for transforms (default: 'base_link')"),
+        default="base_link",
         required=False,
     )
     parser.add_argument(
@@ -73,7 +73,6 @@ def main():
     )
     args = parser.parse_args()
 
-    print("Starting frame listener node...")
     rclpy.init()
     path_publisher = PathPublisher(
         args.base_frame, args.target_frame, args.publish_path, args.path_topic

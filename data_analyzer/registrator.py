@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from threading import Lock
 from typing import Type, Optional, override
 
@@ -40,16 +40,6 @@ SUPPORTED_MSG_TYPES = {
     "geometry_msgs/msg/PoseWithCovariance": PoseWithCovariance,
     "nav_msgs/msg/Path": Path,
 }
-
-
-@dataclass
-class PoseSubscriberModel(SubscriberModel):
-    msg_type: Type[PoseWithCovarianceStamped] = field(default=PoseWithCovarianceStamped)
-
-
-@dataclass
-class OdometrySubscriberModel(SubscriberModel):
-    msg_type: Type[Odometry] = field(default=Odometry)
 
 
 class Subscriber(Node):
@@ -208,7 +198,7 @@ class TransformSubscriber(Node):
         super().__init__(node_name)
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
-        self.timer = self.create_timer(0.5, self.cb_timer)
+        self.timer = self.create_timer(0.1, self.cb_timer)
 
     def cb_timer(self):
         from_frame = self.model.source_frame
@@ -223,7 +213,7 @@ class TransformSubscriber(Node):
             )
             translation = tf_data.transform.translation
             rotation = tf_data.transform.rotation
-            self.get_logger().info(
+            self.get_logger().debug(
                 f"Translation: x={translation.x:.2f}, y={translation.y:.2f}, z={translation.z:.2f} | "
                 f"Rotation: x={rotation.x:.2f}, y={rotation.y:.2f}, z={rotation.z:.2f}, w={rotation.w:.2f}"
             )
