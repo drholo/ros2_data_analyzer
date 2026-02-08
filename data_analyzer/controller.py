@@ -18,12 +18,10 @@ class Controller:
         self.executor = MultiThreadedExecutor()
         self._nodes = []
 
-    def register(
-        self, topic: str, name: str = "", pose: bool = False
-    ):
+    def register(self, topic: str, name: str = "", pose: bool = False):
         if not name:
             name = topic.replace("/", "_")
-        
+
         _node = create_pose_subscriber(topic)
         # if pose:
         #     _node = PoseSubscriber(topic=topic, node_name=name)

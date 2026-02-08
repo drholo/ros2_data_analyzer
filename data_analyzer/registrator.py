@@ -1,10 +1,14 @@
 from dataclasses import dataclass, field
-from enum import Enum
 from threading import Lock
-from typing import Type, Union, override
+from typing import Type, Optional, override
 
-from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped, PoseWithCovariance
+from geometry_msgs.msg import (
+    PoseWithCovarianceStamped,
+    TransformStamped,
+    PoseWithCovariance,
+)
 from nav_msgs.msg import Odometry, Path
+from rclpy import spin_once
 from rclpy.node import Node
 from rclpy.time import Time
 from tf2_ros import TransformException
@@ -59,7 +63,7 @@ class Subscriber(Node):
 
     def run_callback(self, msg):
         raise NotImplementedError
-    
+
 
 class PoseSubscriber(Subscriber):
     def __init__(self, model: SubscriberModel):
@@ -73,10 +77,11 @@ class PoseSubscriber(Subscriber):
         if isinstance(msg, PoseWithCovariance):
             return msg.pose
         if isinstance(msg, Path):
-            return msg.poses[-1].pose 
+            return msg.poses[-1].pose
         else:
             self.get_logger().error(
-                f"Unsupported type of message. Should be one of: [{", ".join(SUPPORTED_MSG_TYPES.values())}]"
+                "Unsupported type of message. "
+                f"Should be one of: [{', '.join(SUPPORTED_MSG_TYPES.values())}]"
             )
             return None
 
@@ -107,20 +112,19 @@ class PoseSubscriber(Subscriber):
 class PathSubscriber(Subscriber):
     def __init__(self, model: SubscriberModel):
         super().__init__(model=model)
-    
+
     def get_path(self, msg):
         if isinstance(msg, Path):
             return msg.poses
         else:
-            self.get_logger().error(
-                f"Message is not of supported type: [{Path}]"
-            )
+            self.get_logger().error(f"Message is not of supported type: [{Path}]")
 
     @override
     def run_callback(self, msg: Odometry):
         self.get_logger().debug(
             f"Received {self.model.msg_type.__name__} message from topic {self.model.topic}"
         )
+
     # TODO: add path processing
 
 
@@ -131,25 +135,48 @@ def create_pose_subscriber(
 ) -> PoseSubscriber:
     if not node_name:
         node_name = topic.replace("/", "_") + "_subscriber"
-    
+
     if not msg_type:
         msg_type = get_msg_type(topic)
-    
+
     if msg_type in SUPPORTED_MSG_TYPES.values():
         return PoseSubscriber(
-            SubscriberModel(
-                node_name=node_name,
-                topic=topic,
-                msg_type=msg_type
-            )
+            SubscriberModel(node_name=node_name, topic=topic, msg_type=msg_type)
         )
     raise ValueError(
-        f"Unsupported message type. Should be one of [{", ".join(SUPPORTED_MSG_TYPES.keys())}]"
+        "Unsupported message type. "
+        f"Should be one of [{', '.join(SUPPORTED_MSG_TYPES.keys())}]"
     )
 
 
-def get_msg_type(topic: str):
-    return PoseWithCovarianceStamped
+def get_msg_type(topic: str, node: Optional[Node] = None) -> Type:
+    n_topic = topic if topic.startswith("/") else f"/{topic}"
+    tmp_node = None
+    if not node:
+        tmp_node = Node("_tmp_topic_node")
+        node = tmp_node
+
+    for _ in range(10):
+        spin_once(node, timeout_sec=0.5)
+
+    matching_types = []
+    for t_name, t_types in node.get_topic_names_and_types():
+        if t_name == n_topic:
+            matching_types = t_types
+            break
+
+    if tmp_node:
+        tmp_node.destroy_node()
+
+    if matching_types:
+        for t_type in matching_types:
+            if t_type in SUPPORTED_MSG_TYPES:
+                return SUPPORTED_MSG_TYPES[t_type]
+    raise ValueError(
+        "No supported topics found. "
+        f"Should be one of {', '.join(SUPPORTED_MSG_TYPES.keys())}"
+    )
+
 
 class TransformSubscriber(Node):
     def __init__(
