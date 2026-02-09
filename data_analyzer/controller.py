@@ -146,7 +146,7 @@ def main():
     args = parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
     if args.command == "plot":
-        plot_2d_traj([], recorded_paths=args.paths)
+        plot_2d_traj(recorded_paths=args.paths)
         return
 
     topics = get_topics(args)
@@ -167,7 +167,7 @@ def main():
     controller.run()
     try:
         if args.plot:
-            plot_2d_traj(controller.nodes)
+            plot_2d_traj(subscribers=controller.nodes)
         else:
             stop_event.wait()
     except KeyboardInterrupt:

@@ -1,11 +1,13 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional, Sequence, Union
 
 import matplotlib.animation as anim
 import matplotlib.pyplot as plt
 from cycler import cycler
+
+from registrator import Subscriber
 
 
 @dataclass
@@ -51,8 +53,9 @@ def _load_recorded_trajectories(
 
 
 def plot_2d_traj(
-    subscribers,
-    interval=100,
+    *,
+    subscribers: Optional[Sequence[Union[RecordedTrajectory, Subscriber]]] = None,
+    interval: int = 100,
     recorded_paths: Optional[Union[str, Path, list[Union[str, Path]]]] = None,
 ):
     if recorded_paths:
