@@ -77,7 +77,12 @@ class Controller:
 
 def parse_args():
     parser = argparse.ArgumentParser("DataAnalyzer")
-    parser.add_argument(
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    record_parser = subparsers.add_parser(
+        "record", help="Subscribe to topics and optionally plot or record"
+    )
+    record_parser.add_argument(
         "topics",
         nargs="+",
         help=(
@@ -87,26 +92,35 @@ def parse_args():
             " amcl_pose:AMCL world odometry/filtered:EKF"
         ),
     )
-    parser.add_argument(
+    record_parser.add_argument(
         "--timeout",
         default=1.0,
         type=float,
         required=False,
         help="Timeout in seconds to register a topic",
     )
-    parser.add_argument(
+    record_parser.add_argument(
         "--plot",
         action="store_true",
         default=False,
         required=False,
         help="Plot the trajectories after processing the data",
     )
-    parser.add_argument(
+    record_parser.add_argument(
         "--record_to",
         default=None,
         type=str,
         required=False,
         help="Path to save the recorded data in JSON format",
+    )
+
+    plot_parser = subparsers.add_parser(
+        "plot", help="Plot trajectories from recorded data"
+    )
+    plot_parser.add_argument(
+        "paths",
+        nargs="+",
+        help="Path(s) to recorded data files or directories",
     )
 
     return parser.parse_args()
@@ -126,6 +140,10 @@ def get_topics(args):
 
 def main():
     args = parse_args()
+    if args.command == "plot":
+        plot_2d_traj([], recorded_paths=args.paths)
+        return
+
     topics = get_topics(args)
     rclpy.init()
     controller = Controller()
@@ -152,7 +170,10 @@ def main():
         controller.stop()
 
     if args.plot:
-        plot_2d_traj(controller.nodes)
+        if args.record_to:
+            plot_2d_traj(controller.nodes, recorded_paths=args.record_to)
+        else:
+            plot_2d_traj(controller.nodes)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,62 @@
+from dataclasses import dataclass
+import json
+from pathlib import Path
+from typing import Iterable, Optional, Union
+
 import matplotlib.animation as anim
 import matplotlib.pyplot as plt
 from cycler import cycler
 
 
-def plot_2d_traj(subscribers, interval=100):
+@dataclass
+class PlotModel:
+    node_name: str
+
+
+class RecordedTrajectory:
+    def __init__(self, name: str, x: list[float], y: list[float]):
+        self.model = PlotModel(node_name=name)
+        self._x = x
+        self._y = y
+
+    def get_trajectory_data(self):
+        return self._x, self._y
+
+
+def _collect_record_files(paths: Iterable[Union[str, Path]]) -> list[Path]:
+    files: list[Path] = []
+    for raw_path in paths:
+        path = Path(raw_path)
+        if path.is_dir():
+            files.extend(sorted(path.glob("*.json")))
+        elif path.exists():
+            files.append(path)
+    return files
+
+
+def _load_recorded_trajectories(paths: Iterable[Union[str, Path]]) -> list[RecordedTrajectory]:
+    trajectories: list[RecordedTrajectory] = []
+    for path in _collect_record_files(paths):
+        with open(path, "r") as file:
+            payload = json.load(file)
+
+        record_name = payload.get("record_name") or path.stem
+        data_points = payload.get("data", [])
+        x = [point["position"]["x"] for point in data_points if "position" in point]
+        y = [point["position"]["y"] for point in data_points if "position" in point]
+        trajectories.append(RecordedTrajectory(name=record_name, x=x, y=y))
+    return trajectories
+
+
+def plot_2d_traj(
+    subscribers,
+    interval=100,
+    recorded_paths: Optional[Union[str, Path, list[Union[str, Path]]]] = None,
+):
+    if recorded_paths:
+        paths = recorded_paths if isinstance(recorded_paths, list) else [recorded_paths]
+        subscribers = _load_recorded_trajectories(paths)
+
     fig, ax = plt.subplots()
     fig.patch.set_facecolor("white")
 
