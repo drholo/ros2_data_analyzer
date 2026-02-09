@@ -89,8 +89,8 @@ def plot_2d_traj(
         ax.set_title("2D Trajectory Comparison", fontsize=14, fontweight="bold")
         ax.legend(loc="best", fontsize=11)
         axes = plt.gca()
-        axes.set_xlim(min_val - 1, max_val + 1)
-        axes.set_ylim(min_val - 1, max_val + 1)
+        axes.set_xlim(min_val - 0.2, max_val + 0.2)
+        axes.set_ylim(min_val - 0.2, max_val + 0.2)
 
         return (ax,)
 
