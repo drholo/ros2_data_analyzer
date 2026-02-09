@@ -1,4 +1,5 @@
 import argparse
+import logging
 import threading
 import time
 from pathlib import Path
@@ -22,6 +23,7 @@ class Controller:
         self.executor = MultiThreadedExecutor()
         self._nodes = []
         self._recorders = []
+        self._logger = logging.getLogger(__name__)
 
     def register(self, topic: str, name: str = "", timeout: float = 1.0):
         if not name:
@@ -30,7 +32,11 @@ class Controller:
         _node = create_pose_subscriber(topic=topic, node_name=name, timeout=timeout)
         self._nodes.append(_node)
         self.executor.add_node(_node)
-        print(f"Subcriber {_node} of type {_node.model.msg_type} is registered!")
+        self._logger.info(
+            "Subscriber %s of type %s is registered!",
+            _node,
+            _node.model.msg_type,
+        )
         return _node
 
     @property
@@ -77,6 +83,13 @@ class Controller:
 
 def parse_args():
     parser = argparse.ArgumentParser("DataAnalyzer")
+    parser.add_argument(
+        "--log_level",
+        default="INFO",
+        type=str,
+        required=False,
+        help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     record_parser = subparsers.add_parser(
@@ -140,6 +153,7 @@ def get_topics(args):
 
 def main():
     args = parse_args()
+    logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
     if args.command == "plot":
         plot_2d_traj([], recorded_paths=args.paths)
         return

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 import json
-import signal
+import logging
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
@@ -64,24 +64,21 @@ class Recorder:
     def __init__(self, model: RecorderModel):
         self.model = model
         self.subscriber = self.model.subscriber
-        self._previous_sigint_handler = signal.getsignal(signal.SIGINT)
-        signal.signal(signal.SIGINT, self._handle_sigint)
+        self._logger = logging.getLogger(__name__)
         if self.model.data.data is None:
             self.data = []
         else:            
             self.data = self.model.data.data
+        self._logger.info(
+            "%s is initialized",
+            self.model.recorder_name,
+        )
     
     def update_data(self, data: Data):
         self.data.append(data)
 
     def save_data(self):
         data_model = DataModel(record_name=self.model.data.record_name, data=self.data)
+        self._logger.info("Saving data to %s...", self.model.target_file)
         with open(self.model.target_file, "w") as f:
             json.dump(data_model.__dict__, f, default=lambda o: o.__dict__, indent=4)
-
-    def _handle_sigint(self, signum, frame):
-        self.save_data()
-        if callable(self._previous_sigint_handler) and self._previous_sigint_handler is not self._handle_sigint:
-            self._previous_sigint_handler(signum, frame)
-            return
-        raise KeyboardInterrupt

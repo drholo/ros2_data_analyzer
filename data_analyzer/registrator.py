@@ -260,7 +260,7 @@ class TransformSubscriber(Node):
             )
             self.cb_data_process(tf_data)
         except TransformException as ex:
-            self.get_logger().info(
+            self.get_logger().error(
                 f"Could not transform {from_frame} to {to_frame}: {ex}"
             )
             return
