@@ -1,14 +1,12 @@
 import argparse
 import logging
 import threading
-import time
 from pathlib import Path
 from typing import List
 
 import rclpy
 from plotter import plot_2d_traj
 from rclpy.executors import MultiThreadedExecutor
-from rclpy.node import Node
 from recorder import Recorder, create_recorder
 from registrator import Subscriber, create_pose_subscriber
 
@@ -154,6 +152,8 @@ def main():
     topics = get_topics(args)
     rclpy.init()
     controller = Controller()
+    stop_event = threading.Event()
+    rclpy.get_default_context().on_shutdown(stop_event.set)
 
     timeout = args.timeout
 
@@ -166,8 +166,10 @@ def main():
 
     controller.run()
     try:
-        while rclpy.ok():
-            time.sleep(0.1)
+        if args.plot:
+            plot_2d_traj(controller.nodes)
+        else:
+            stop_event.wait()
     except KeyboardInterrupt:
         pass
     finally:
@@ -175,9 +177,6 @@ def main():
             controller.save_all()
         rclpy.shutdown()
         controller.stop()
-
-    if args.plot:
-        plot_2d_traj(controller.nodes)
 
 
 if __name__ == "__main__":
