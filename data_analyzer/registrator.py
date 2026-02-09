@@ -2,20 +2,16 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Callable, Optional, Type, override
 
-from geometry_msgs.msg import (
-    PoseWithCovarianceStamped,
-    TransformStamped,
-    PoseWithCovariance,
-)
+from geometry_msgs.msg import (PoseWithCovariance, PoseWithCovarianceStamped,
+                               TransformStamped)
 from nav_msgs.msg import Odometry, Path
 from rclpy import spin_once
 from rclpy.node import Node
 from rclpy.time import Time
-from tf2_ros.buffer import Buffer
-from tf2_ros import TransformException
-from tf2_ros.transform_listener import TransformListener
-
 from recorder import Data, OrientationData, PositionData
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 
 
 @dataclass
@@ -125,7 +121,7 @@ class PoseSubscriber(Subscriber):
             )
             self.update_data(pose)
             self.return_data(msg, pose)
-    
+
     def return_data(self, msg, pose):
         timestamp = self._extract_timestamp(msg)
         position = pose.position
@@ -171,7 +167,10 @@ class PathSubscriber(Subscriber):
 
 
 def create_pose_subscriber(
-    topic: str, msg_type: Optional[Type] = None, node_name: str = "", timeout: float = 1.0
+    topic: str,
+    msg_type: Optional[Type] = None,
+    node_name: str = "",
+    timeout: float = 1.0,
 ) -> PoseSubscriber:
     if not node_name:
         node_name = topic.replace("/", "_") + "_subscriber"

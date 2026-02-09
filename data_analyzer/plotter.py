@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Union
 
@@ -34,7 +34,9 @@ def _collect_record_files(paths: Iterable[Union[str, Path]]) -> list[Path]:
     return files
 
 
-def _load_recorded_trajectories(paths: Iterable[Union[str, Path]]) -> list[RecordedTrajectory]:
+def _load_recorded_trajectories(
+    paths: Iterable[Union[str, Path]]
+) -> list[RecordedTrajectory]:
     trajectories: list[RecordedTrajectory] = []
     for path in _collect_record_files(paths):
         with open(path, "r") as file:
