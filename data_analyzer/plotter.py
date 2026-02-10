@@ -100,7 +100,9 @@ def plot_2d_traj(
         return (ax,)
 
     if use_animation:
-        ani = anim.FuncAnimation(fig, lambda _: update_plot(), interval=interval, blit=False)
+        ani = anim.FuncAnimation(
+            fig, lambda _: update_plot(), interval=interval, blit=False
+        )
     else:
         update_plot()
     plt.show()
