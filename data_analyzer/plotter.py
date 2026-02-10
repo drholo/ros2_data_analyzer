@@ -57,9 +57,12 @@ def plot_2d_traj(
     interval: int = 100,
     recorded_paths: Optional[Union[str, Path, list[Union[str, Path]]]] = None,
 ):
+    use_animation = False
     if recorded_paths:
         paths = recorded_paths if isinstance(recorded_paths, list) else [recorded_paths]
         subscribers = _load_recorded_trajectories(paths)
+    else:
+        use_animation = True
 
     fig, ax = plt.subplots()
     fig.patch.set_facecolor("white")
@@ -68,7 +71,7 @@ def plot_2d_traj(
     colors = ["blue", "red", "orange", "purple", "green", "brown"]
     ax.set_prop_cycle(cycler("color", colors))
 
-    def update_plot(_):
+    def update_plot():
         ax.clear()
         ax.set_prop_cycle(cycler("color", colors))
         ax.set_aspect("equal", "box")
@@ -96,5 +99,8 @@ def plot_2d_traj(
 
         return (ax,)
 
-    ani = anim.FuncAnimation(fig, update_plot, interval=interval, blit=False)
+    if use_animation:
+        ani = anim.FuncAnimation(fig, lambda _: update_plot(), interval=interval, blit=False)
+    else:
+        update_plot()
     plt.show()
