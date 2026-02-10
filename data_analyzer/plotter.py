@@ -6,7 +6,7 @@ from typing import Iterable, Optional, Sequence, Union
 import matplotlib.animation as anim
 import matplotlib.pyplot as plt
 from cycler import cycler
-from registrator import Subscriber
+from .registrator import Subscriber
 
 
 @dataclass

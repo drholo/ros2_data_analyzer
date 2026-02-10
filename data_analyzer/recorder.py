@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Union
 from rclpy.logging import get_logger
 
 if TYPE_CHECKING:
-    from registrator import Subscriber
+    from .registrator import Subscriber
 
 
 @dataclass
