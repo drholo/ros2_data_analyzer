@@ -7,6 +7,7 @@ from typing import List
 import rclpy
 from plotter import plot_2d_traj
 from rclpy.executors import MultiThreadedExecutor
+from rclpy.logging import get_logger
 from recorder import Recorder, create_recorder
 from registrator import Subscriber, create_pose_subscriber
 
@@ -21,7 +22,7 @@ class Controller:
         self.executor = MultiThreadedExecutor()
         self._nodes = []
         self._recorders = []
-        self._logger = logging.getLogger(__name__)
+        self._logger = get_logger(__name__)
 
     def register(self, topic: str, name: str = "", timeout: float = 1.0):
         if not name:
@@ -31,9 +32,7 @@ class Controller:
         self._nodes.append(_node)
         self.executor.add_node(_node)
         self._logger.info(
-            "Subscriber %s of type %s is registered!",
-            _node,
-            _node.model.msg_type,
+            f"Subscriber {_node} of type {_node.model.msg_type} is registered!"
         )
         return _node
 

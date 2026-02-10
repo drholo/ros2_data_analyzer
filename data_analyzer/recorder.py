@@ -1,8 +1,9 @@
 import json
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Union
+
+from rclpy.logging import get_logger
 
 if TYPE_CHECKING:
     from registrator import Subscriber
@@ -65,22 +66,19 @@ class Recorder:
     def __init__(self, model: RecorderModel):
         self.model = model
         self.subscriber = self.model.subscriber
-        self._logger = logging.getLogger(__name__)
+        self._logger = get_logger(__name__)
         if self.model.data.data is None:
             self.data = []
         else:
             self.data = self.model.data.data
-        self._logger.info(
-            "%s is initialized",
-            self.model.recorder_name,
-        )
+        self._logger.info(f"{self.model.recorder_name} is initialized")
 
     def update_data(self, data: Data):
         self.data.append(data)
 
     def save_data(self):
         data_model = DataModel(record_name=self.model.data.record_name, data=self.data)
-        self._logger.info("Saving data to %s...", self.model.target_file)
+        self._logger.info(f"Saving data to {self.model.target_file}...")
         with open(self.model.target_file, "w") as _file:
             json.dump(
                 data_model.__dict__, _file, default=lambda obj: obj.__dict__, indent=4

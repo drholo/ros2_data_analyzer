@@ -6,12 +6,15 @@ from geometry_msgs.msg import (PoseWithCovariance, PoseWithCovarianceStamped,
                                TransformStamped)
 from nav_msgs.msg import Odometry, Path
 from rclpy import spin_once
+from rclpy.logging import get_logger
 from rclpy.node import Node
 from rclpy.time import Time
 from recorder import Data, OrientationData, PositionData
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -179,6 +182,10 @@ def create_pose_subscriber(
         try:
             msg_type = get_msg_type(topic, timeout=timeout)
         except ValueError as err:
+            logger.error(f"Error determining message type for topic '{topic}': {err}")
+            logger.error(
+                f"Setting default message type to Odometry for topic '{topic}'"
+            )
             msg_type = Odometry
 
     if msg_type in SUPPORTED_MSG_TYPES.values():
