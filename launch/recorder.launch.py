@@ -87,6 +87,7 @@ def generate_launch_description():
             *record_topics,
             "--record_to",
             record_dst,
+            "--plot"
         ],
         output="log",
     )
