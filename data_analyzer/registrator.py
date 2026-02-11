@@ -2,20 +2,18 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Callable, Optional, Type, override
 
-from geometry_msgs.msg import (
-    PoseWithCovariance,
-    PoseWithCovarianceStamped,
-    TransformStamped,
-)
+from geometry_msgs.msg import (PoseWithCovariance, PoseWithCovarianceStamped,
+                               TransformStamped)
 from nav_msgs.msg import Odometry, Path
 from rclpy import spin_once
 from rclpy.logging import get_logger
 from rclpy.node import Node
 from rclpy.time import Time
-from .recorder import Data, OrientationData, PositionData
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+
+from .recorder import Data, OrientationData, PositionData
 
 logger = get_logger(__name__)
 
@@ -269,7 +267,7 @@ class TransformSubscriber(Node):
             )
             self.cb_data_process(tf_data)
         except TransformException as ex:
-            self.get_logger().error(
+            self.get_logger().debug(
                 f"Could not transform {from_frame} to {to_frame}: {ex}"
             )
             return
