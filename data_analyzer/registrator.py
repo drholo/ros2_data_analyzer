@@ -13,7 +13,10 @@ from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
-from .recorder import Data, OrientationData, PositionData
+try:
+    from .recorder import Data, OrientationData, PositionData
+except ImportError:
+    from recorder import Data, OrientationData, PositionData
 
 logger = get_logger(__name__)
 

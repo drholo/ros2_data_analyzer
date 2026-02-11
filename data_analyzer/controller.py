@@ -1,5 +1,6 @@
 import argparse
 import logging
+import signal
 import threading
 from pathlib import Path
 from typing import List
@@ -8,9 +9,14 @@ import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.logging import get_logger
 
-from .plotter import plot_2d_traj
-from .recorder import Recorder, create_recorder
-from .registrator import Subscriber, create_pose_subscriber
+try:
+    from .registrator import create_pose_subscriber,Subscriber
+    from .recorder import Recorder, create_recorder
+    from .plotter import plot_2d_traj
+except ImportError:
+    from registrator import create_pose_subscriber, Subscriber
+    from recorder import Recorder, create_recorder
+    from plotter import plot_2d_traj
 
 
 class Controller:
@@ -153,7 +159,40 @@ def main():
     rclpy.init()
     controller = Controller()
     stop_event = threading.Event()
-    rclpy.get_default_context().on_shutdown(stop_event.set)
+    shutdown_lock = threading.Lock()
+    shutdown_done = False
+
+    def save_once():
+        nonlocal shutdown_done
+        with shutdown_lock:
+            if shutdown_done:
+                return
+            shutdown_done = True
+        if args.record_to:
+            controller.save_all()
+
+    def on_rclpy_shutdown():
+        stop_event.set()
+        save_once()
+
+    def handle_signal(_signum, _frame):
+        stop_event.set()
+        save_once()
+        try:
+            rclpy.shutdown()
+        except Exception:
+            pass
+        if args.plot:
+            try:
+                import matplotlib.pyplot as plt
+
+                plt.close("all")
+            except Exception:
+                pass
+
+    rclpy.get_default_context().on_shutdown(on_rclpy_shutdown)
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
 
     timeout = args.timeout
 
@@ -173,9 +212,11 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        if args.record_to:
-            controller.save_all()
-        rclpy.shutdown()
+        save_once()
+        try:
+            rclpy.shutdown()
+        except Exception:
+            pass
         controller.stop()
 
 
