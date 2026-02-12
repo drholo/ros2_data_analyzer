@@ -7,6 +7,7 @@ from geometry_msgs.msg import (
     PoseWithCovarianceStamped,
     TransformStamped,
 )
+from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry, Path
 from rclpy import spin_once
 from rclpy.logging import get_logger
@@ -280,6 +281,35 @@ class TransformSubscriber(Node):
 
     def cb_data_process(self, tf_data: TransformStamped):
         pass
+
+
+class ImuSubscriber(Subscriber):
+    def __init__(self, model: SubscriberModel):
+        super().__init__(model=model)
+
+    @override
+    def run_callback(self, msg):
+        self.get_logger().debug(
+            f"Received {self.model.msg_type.__name__} message from topic {self.model.topic}"
+        )
+        self.get_logger().info(
+            f"Orientation: {msg.orientation}, "
+            f"Angular Velocity: {msg.angular_velocity}, "
+            f"Linear Acceleration: {msg.linear_acceleration}"
+        )
+
+
+def create_imu_subscriber(
+    topic: str,
+    node_name: str = "",
+    timeout: float = 1.0,
+) -> ImuSubscriber:
+    if not node_name:
+        node_name = topic.replace("/", "_") + "_subscriber"
+
+    return ImuSubscriber(
+        SubscriberModel(node_name=node_name, topic=topic, msg_type=Imu)
+    )
 
 
 def get_position(pose):
