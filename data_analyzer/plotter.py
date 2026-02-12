@@ -7,15 +7,8 @@ import matplotlib.animation as anim
 import matplotlib.pyplot as plt
 from cycler import cycler
 
-try:
-    from .registrator import Subscriber
-except ImportError:
-    from registrator import Subscriber
-
-
-@dataclass
-class PlotModel:
-    node_name: str
+from .registrator import Subscriber
+from .models import PlotModel
 
 
 class RecordedTrajectory:

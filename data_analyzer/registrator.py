@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from threading import Lock
 from typing import Callable, Optional, Type, override
 
@@ -17,30 +16,15 @@ from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
-try:
-    from .recorder import Data, OrientationData, PositionData
-except ImportError:
-    from recorder import Data, OrientationData, PositionData
+from .models import (
+    SubscriberModel,
+    TransformSubscriberModel,
+    Data,
+    PositionData,
+    OrientationData,
+)
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class NodeModel:
-    node_name: str
-
-
-@dataclass
-class SubscriberModel(NodeModel):
-    topic: str
-    msg_type: Type
-
-
-@dataclass
-class TransformSubscriberModel(NodeModel):
-    target_frame: str
-    source_frame: str
-    timer: float = 0.1
 
 
 SUPPORTED_MSG_TYPES = {

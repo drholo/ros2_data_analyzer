@@ -9,14 +9,9 @@ import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.logging import get_logger
 
-try:
-    from .registrator import create_pose_subscriber, create_imu_subscriber, Subscriber
-    from .recorder import Recorder, create_recorder
-    from .plotter import plot_2d_traj
-except ImportError:
-    from registrator import create_pose_subscriber, create_imu_subscriber, Subscriber
-    from recorder import Recorder, create_recorder
-    from plotter import plot_2d_traj
+from .registrator import create_pose_subscriber, create_imu_subscriber, Subscriber
+from .recorder import Recorder, create_recorder
+from .plotter import plot_2d_traj
 
 
 class Controller:
@@ -42,7 +37,7 @@ class Controller:
             f"Subscriber {_node} of type {_node.model.msg_type} is registered!"
         )
         return _node
-    
+
     def register_imu(self, topic: str, name: str = "", timeout: float = 1.0):
         if not name:
             name = topic.replace("/", "_")
