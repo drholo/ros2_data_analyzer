@@ -11,7 +11,7 @@ from rclpy.logging import get_logger
 
 from .registrator import create_pose_subscriber, create_imu_subscriber, Subscriber
 from .recorder import Recorder, create_recorder
-from .plotter import plot_2d_traj
+from .plotter import plot_2d_traj, plot_imu_data
 
 
 class Controller:
@@ -149,9 +149,11 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_topics(args):
+def get_topics(arg):
+    if isinstance(arg, str):
+        arg = [arg]
     topics = {}
-    for topic in args.topics:
+    for topic in arg:
         try:
             _t, _n = topic.split(":")
         except ValueError:
@@ -165,10 +167,11 @@ def main():
     args = parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
     if args.command == "plot":
-        plot_2d_traj(recorded_paths=args.paths)
+        # plot_2d_traj(recorded_paths=args.paths)
+        plot_imu_data(recorded_paths=args.paths)
         return
 
-    topics = get_topics(args)
+    topics = get_topics(args.topics)
     rclpy.init()
     controller = Controller()
     stop_event = threading.Event()
@@ -213,7 +216,7 @@ def main():
         controller.register(topic=topic, name=name, timeout=timeout)
 
     if args.imu:
-        imu_topic, imu_name = args.imu.split(":")
+        imu_topic, imu_name = get_topics(args.imu).popitem()
         controller.register_imu(topic=imu_topic, name=imu_name, timeout=timeout)
 
     if args.record_to:
@@ -224,6 +227,7 @@ def main():
     try:
         if args.plot:
             plot_2d_traj(subscribers=controller.nodes)
+            plot_imu_data(subscribers=controller.nodes)
         else:
             stop_event.wait()
     except KeyboardInterrupt:

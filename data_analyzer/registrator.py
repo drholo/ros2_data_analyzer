@@ -290,7 +290,7 @@ class ImuSubscriber(Subscriber):
 
         imu_data = self.get_imu_measurements(msg)
         if imu_data:
-            self.update_data(imu_msg=imu_data)
+            self.update_data(imu_data)
             self.return_data(imu_data)
 
     def update_data(self, imu_msg: ImuData):

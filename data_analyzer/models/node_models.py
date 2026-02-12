@@ -29,7 +29,6 @@ class RecorderModel:
 @dataclass
 class PlotModel:
     node_name: str
-    data: DataModel
 
 
 @dataclass
