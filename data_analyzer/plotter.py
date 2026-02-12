@@ -2,7 +2,6 @@ import json
 import math
 from pathlib import Path
 from typing import Iterable, Optional, Sequence, Union
-from xml.parsers.expat import model
 
 import matplotlib.animation as anim
 import matplotlib.pyplot as plt
