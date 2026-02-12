@@ -1,5 +1,4 @@
 import json
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Sequence, Union
 
@@ -8,12 +7,24 @@ import matplotlib.pyplot as plt
 from cycler import cycler
 
 from .registrator import Subscriber
-from .models import PlotModel
+from .models import ImuPlotModel, TrajectoryPlotModel
+
+
+class RecorderIMU:
+    def __init__(self, name: str, timestamps: list[float], orientations: list[tuple]):
+        self.model = ImuPlotModel(
+            node_name=name, timestamps=timestamps, orientation=orientations
+        )
+        self._timestamps = timestamps
+        self._orientations = orientations
+
+    def get_trajectory_data(self):
+        return self._timestamps, self._orientations
 
 
 class RecordedTrajectory:
     def __init__(self, name: str, x: list[float], y: list[float]):
-        self.model = PlotModel(node_name=name)
+        self.model = TrajectoryPlotModel(node_name=name, x=x, y=y)
         self._x = x
         self._y = y
 

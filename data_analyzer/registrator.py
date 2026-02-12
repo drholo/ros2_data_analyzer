@@ -19,9 +19,12 @@ from tf2_ros.transform_listener import TransformListener
 from .models import (
     SubscriberModel,
     TransformSubscriberModel,
+    ImuData,
     Data,
     PositionData,
     OrientationData,
+    AngularVelocityData,
+    LinearAccelerationData,
 )
 
 logger = get_logger(__name__)
@@ -270,17 +273,74 @@ class TransformSubscriber(Node):
 class ImuSubscriber(Subscriber):
     def __init__(self, model: SubscriberModel):
         super().__init__(model=model)
+        self._acc: list[LinearAccelerationData] = []
+        self._angular_velocity: list[AngularVelocityData] = []
+        self._orientation: list[OrientationData] = []
 
     @override
     def run_callback(self, msg):
         self.get_logger().debug(
             f"Received {self.model.msg_type.__name__} message from topic {self.model.topic}"
         )
-        self.get_logger().info(
+        self.get_logger().debug(
             f"Orientation: {msg.orientation}, "
             f"Angular Velocity: {msg.angular_velocity}, "
             f"Linear Acceleration: {msg.linear_acceleration}"
         )
+
+        imu_data = self.get_imu_measurements(msg)
+        if imu_data:
+            self.update_data(imu_msg=imu_data)
+            self.return_data(imu_data)
+
+    def update_data(self, imu_msg: ImuData):
+        with self._lock:
+            self._orientation.append(imu_msg.orientation)
+            self._angular_velocity.append(imu_msg.angular_velocity)
+            self._acc.append(imu_msg.linear_acceleration)
+
+    def get_imu_measurements(self, msg) -> Optional[ImuData]:
+        if isinstance(msg, Imu):
+            orientation = OrientationData(
+                x=msg.orientation.x,
+                y=msg.orientation.y,
+                z=msg.orientation.z,
+                w=msg.orientation.w,
+            )
+            angular_velocity = AngularVelocityData(
+                x=msg.angular_velocity.x,
+                y=msg.angular_velocity.y,
+                z=msg.angular_velocity.z,
+            )
+            linear_acceleration = LinearAccelerationData(
+                x=msg.linear_acceleration.x,
+                y=msg.linear_acceleration.y,
+                z=msg.linear_acceleration.z,
+            )
+            return ImuData(
+                timestamp=self._extract_timestamp(msg),
+                position=PositionData(
+                    x=0.0, y=0.0, z=0.0
+                ),  # Placeholder, update as needed
+                orientation=orientation,
+                angular_velocity=angular_velocity,
+                linear_acceleration=linear_acceleration,
+            )
+        else:
+            self.get_logger().error(
+                "Unsupported type of message. Should be one of: [sensor_msgs/msg/Imu]"
+            )
+            return None
+
+    def return_data(self, imu_data):
+        self._emit_data(imu_data)
+
+    def _extract_timestamp(self, msg) -> float:
+        if hasattr(msg, "header"):
+            stamp = msg.header.stamp
+            return float(stamp.sec) + float(stamp.nanosec) * 1e-9
+
+        return float(self.get_clock().now().nanoseconds) * 1e-9
 
 
 def create_imu_subscriber(

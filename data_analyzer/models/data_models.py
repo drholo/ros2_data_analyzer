@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Union
 
 
 @dataclass
@@ -24,6 +25,20 @@ class OrientationEulerData:
 
 
 @dataclass
+class AngularVelocityData:
+    x: float
+    y: float
+    z: float
+
+
+@dataclass
+class LinearAccelerationData:
+    x: float
+    y: float
+    z: float
+
+
+@dataclass
 class Data:
     timestamp: float
     position: PositionData
@@ -31,6 +46,12 @@ class Data:
 
 
 @dataclass
+class ImuData(Data):
+    angular_velocity: AngularVelocityData
+    linear_acceleration: LinearAccelerationData
+
+
+@dataclass
 class DataModel:
     record_name: str
-    data: list[Data]
+    data: list[Union[Data, ImuData]]

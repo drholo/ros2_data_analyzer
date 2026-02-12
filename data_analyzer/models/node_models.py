@@ -29,6 +29,47 @@ class RecorderModel:
 @dataclass
 class PlotModel:
     node_name: str
+    data: DataModel
+
+
+@dataclass
+class ImuPlotModel(PlotModel):
+    timestamps: list[float]
+    orientation: list[tuple]
+    angular_velocity: list[tuple]
+    linear_acceleration: list[tuple]
+
+    def __post_init__(self):
+        if not self.orientation:
+            self.orientation = []
+        if not self.timestamps:
+            self.timestamps = []
+        if not self.angular_velocity:
+            self.angular_velocity = []
+        if not self.linear_acceleration:
+            self.linear_acceleration = []
+
+
+def get_acceleration(msg):
+    return (
+        msg.linear_acceleration.x,
+        msg.linear_acceleration.y,
+        msg.linear_acceleration.z,
+    )
+
+
+def get_angular_velocity(msg):
+    return msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z
+
+
+def get_orientation(msg):
+    return msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w
+
+
+@dataclass
+class TrajectoryPlotModel(PlotModel):
+    x: list[float]
+    y: list[float]
 
 
 @dataclass
