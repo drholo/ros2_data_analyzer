@@ -167,7 +167,7 @@ def main():
     args = parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
     if args.command == "plot":
-        # plot_2d_traj(recorded_paths=args.paths)
+        plot_2d_traj(recorded_paths=args.paths)
         plot_imu_data(recorded_paths=args.paths)
         return
 

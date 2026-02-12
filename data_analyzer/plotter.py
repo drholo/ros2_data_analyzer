@@ -61,6 +61,9 @@ def _load_recorded_trajectories(
 ) -> list[RecordedTrajectory]:
     trajectories: list[RecordedTrajectory] = []
     for path in _collect_record_files(paths):
+        if "imu" in path.stem.lower():
+            # dirty fix for skipping IMU data files when loading trajectories
+            continue
         with open(path, "r") as file:
             payload = json.load(file)
 
