@@ -2,8 +2,11 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Callable, Optional, Type, override
 
-from geometry_msgs.msg import (PoseWithCovariance, PoseWithCovarianceStamped,
-                               TransformStamped)
+from geometry_msgs.msg import (
+    PoseWithCovariance,
+    PoseWithCovarianceStamped,
+    TransformStamped,
+)
 from nav_msgs.msg import Odometry, Path
 from rclpy import spin_once
 from rclpy.logging import get_logger

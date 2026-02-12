@@ -10,7 +10,7 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.logging import get_logger
 
 try:
-    from .registrator import create_pose_subscriber,Subscriber
+    from .registrator import create_pose_subscriber, Subscriber
     from .recorder import Recorder, create_recorder
     from .plotter import plot_2d_traj
 except ImportError:
