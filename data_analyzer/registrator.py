@@ -346,7 +346,6 @@ class ImuSubscriber(Subscriber):
 def create_imu_subscriber(
     topic: str,
     node_name: str = "",
-    timeout: float = 1.0,
 ) -> ImuSubscriber:
     if not node_name:
         node_name = topic.replace("/", "_") + "_subscriber"

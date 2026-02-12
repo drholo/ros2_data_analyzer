@@ -1,4 +1,5 @@
 import json
+import math
 from pathlib import Path
 from typing import Iterable, Optional, Sequence, Union
 from xml.parsers.expat import model
@@ -82,10 +83,11 @@ def _load_recorded_imu_data(paths: Iterable[Union[str, Path]]) -> list[RecorderI
             point["timestamp"] for point in data_points if "timestamp" in point
         ]
         orientations = [
-            (
+            _quaternion_to_euler(
                 point["orientation"]["x"],
                 point["orientation"]["y"],
                 point["orientation"]["z"],
+                point["orientation"]["w"],
             )
             for point in data_points
             if "orientation" in point
@@ -265,3 +267,17 @@ def plot_imu_data(
 
     plt.tight_layout()
     plt.show()
+
+
+def _quaternion_to_euler(q_w, q_x, q_y, q_z):
+
+    # Roll (x-axis rotation)
+    roll = math.atan2(2 * (q_w * q_x + q_y * q_z), 1 - 2 * (q_x**2 + q_y**2))
+
+    # Pitch (y-axis rotation)
+    pitch = math.asin(2 * (q_w * q_y - q_z * q_x))
+
+    # Yaw (z-axis rotation)
+    yaw = math.atan2(2 * (q_w * q_z + q_x * q_y), 1 - 2 * (q_y**2 + q_z**2))
+
+    return (roll, pitch, yaw)
