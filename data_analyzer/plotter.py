@@ -1,5 +1,6 @@
 import json
 import math
+from os import path
 from pathlib import Path
 from typing import Iterable, Optional, Sequence, Union
 
@@ -81,9 +82,22 @@ def _load_recorded_imu_data(paths: Iterable[Union[str, Path]]) -> list[RecorderI
             payload = json.load(file)
         record_name = payload.get("record_name") or path.stem
         data_points = payload.get("data", [])
-        timestamps = [
-            point["timestamp"] for point in data_points if "timestamp" in point
+
+        valid_points = [
+            point
+            for point in data_points
+            if all(
+                key in point
+                for key in [
+                    "timestamp",
+                    "orientation",
+                    "angular_velocity",
+                    "linear_acceleration",
+                ]
+            )
         ]
+
+        timestamps = [point["timestamp"] for point in valid_points]
         orientations = [
             _quaternion_to_euler(
                 point["orientation"]["x"],
@@ -91,8 +105,7 @@ def _load_recorded_imu_data(paths: Iterable[Union[str, Path]]) -> list[RecorderI
                 point["orientation"]["z"],
                 point["orientation"]["w"],
             )
-            for point in data_points
-            if "orientation" in point
+            for point in valid_points
         ]
         angular_velocity = [
             (
@@ -100,8 +113,7 @@ def _load_recorded_imu_data(paths: Iterable[Union[str, Path]]) -> list[RecorderI
                 point["angular_velocity"]["y"],
                 point["angular_velocity"]["z"],
             )
-            for point in data_points
-            if "angular_velocity" in point
+            for point in valid_points
         ]
         linear_acceleration = [
             (
@@ -109,8 +121,7 @@ def _load_recorded_imu_data(paths: Iterable[Union[str, Path]]) -> list[RecorderI
                 point["linear_acceleration"]["y"],
                 point["linear_acceleration"]["z"],
             )
-            for point in data_points
-            if "linear_acceleration" in point
+            for point in valid_points
         ]
         imu_data_list.append(
             RecorderIMU(
@@ -140,7 +151,6 @@ def plot_2d_traj(
     fig, ax = plt.subplots()
     fig.patch.set_facecolor("white")
 
-    # Set up color cycle for multiple trajectories
     colors = ["blue", "red", "orange", "purple", "green", "brown"]
     ax.set_prop_cycle(cycler("color", colors))
 
@@ -153,6 +163,8 @@ def plot_2d_traj(
         _my = []
 
         for subscriber in subscribers:
+            if "imu" in subscriber.model.node_name.lower():
+                continue
             x, y = subscriber.get_trajectory_data()
             if len(x) > 0 and len(y) > 0:
                 ax.plot(x, y, label=subscriber.model.node_name, alpha=0.8)
@@ -194,6 +206,8 @@ def plot_imu_data(
     fig.patch.set_facecolor("white")
 
     for subscriber in subscribers:
+        if "imu" not in subscriber.model.node_name.lower():
+            continue
         timestamps = subscriber.model.timestamps
         orientations = subscriber.model.orientation
         angular_velocity = subscriber.model.angular_velocity

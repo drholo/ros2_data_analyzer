@@ -42,7 +42,7 @@ class Controller:
         if not name:
             name = topic.replace("/", "_")
 
-        _node = create_imu_subscriber(topic=topic, node_name=name, timeout=timeout)
+        _node = create_imu_subscriber(topic=topic, node_name=name)
         self._nodes.append(_node)
         self.executor.add_node(_node)
         self._logger.info(
@@ -227,7 +227,7 @@ def main():
     try:
         if args.plot:
             plot_2d_traj(subscribers=controller.nodes)
-            plot_imu_data(subscribers=controller.nodes)
+            # plot_imu_data(subscribers=controller.nodes)
         else:
             stop_event.wait()
     except KeyboardInterrupt:
