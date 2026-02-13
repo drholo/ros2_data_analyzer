@@ -15,6 +15,7 @@ def generate_launch_description():
     path_topic = LaunchConfiguration("path_topic")
     publish_path = LaunchConfiguration("publish_path")
     record_dst = LaunchConfiguration("record_dst")
+    imu_topic = LaunchConfiguration("imu_topic")
 
     record_topics = [
         "tf_path:TF",
@@ -41,6 +42,11 @@ def generate_launch_description():
         "publish_path",
         default_value="true",
         description="Enable Path publishing",
+    )
+    declare_imu_topic_arg = DeclareLaunchArgument(
+        "imu_topic",
+        default_value="ouster/imu:IMU",
+        description="IMU data topic",
     )
     declare_record_dst_arg = DeclareLaunchArgument(
         "record_dst",
@@ -86,10 +92,10 @@ def generate_launch_description():
             "record",
             *record_topics,
             "--imu",
-            "imu_filtered:IMU",
+            imu_topic,
             "--record_to",
             record_dst,
-            "--plot"
+            "--plot",
         ],
         output="log",
     )
@@ -100,6 +106,7 @@ def generate_launch_description():
     ld.add_action(declare_path_topic_arg)
     ld.add_action(declare_publish_path_arg)
     ld.add_action(declare_record_dst_arg)
+    ld.add_action(declare_imu_topic_arg)
     ld.add_action(declare_plot_online_arg)
 
     ld.add_action(path_publisher_exec)
