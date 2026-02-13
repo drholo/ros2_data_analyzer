@@ -178,10 +178,16 @@ def create_pose_subscriber(
             msg_type = get_msg_type(topic, timeout=timeout)
         except ValueError as err:
             logger.error(f"Error determining message type for topic '{topic}': {err}")
-            logger.error(
-                f"Setting default message type to Odometry for topic '{topic}'"
-            )
-            msg_type = Odometry
+            if "amcl_pose" in topic.lower():
+                logger.error(
+                    f"Setting default message type to PoseWithCovarianceStamped for topic '{topic}'"
+                )
+                msg_type = PoseWithCovarianceStamped
+            else:
+                logger.error(
+                    f"Setting default message type to Odometry for topic '{topic}'"
+                )
+                msg_type = Odometry
 
     if msg_type in SUPPORTED_MSG_TYPES.values():
         return PoseSubscriber(

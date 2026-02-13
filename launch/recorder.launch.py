@@ -85,6 +85,8 @@ def generate_launch_description():
             controller_entrypoint.as_posix(),
             "record",
             *record_topics,
+            "--imu",
+            "imu_filtered:IMU",
             "--record_to",
             record_dst,
             "--plot"
