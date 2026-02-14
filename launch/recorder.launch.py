@@ -16,6 +16,7 @@ def generate_launch_description():
     publish_path = LaunchConfiguration("publish_path")
     record_dst = LaunchConfiguration("record_dst")
     imu_topic = LaunchConfiguration("imu_topic")
+    watchdog_ignore = LaunchConfiguration("watchdog_ignore")
 
     record_topics = [
         "tf_path:TF",
@@ -61,6 +62,11 @@ def generate_launch_description():
         ).as_posix(),
         description="Destination path for rosbag recording",
     )
+    declare_watchdog_ignore_arg = DeclareLaunchArgument(
+        "watchdog_ignore",
+        default_value=path_topic,
+        description="Topics that should not ping the watchdog",
+    )
 
     data_analyzer_prefix = get_package_prefix("data_analyzer")
     path_publisher_entrypoint = Path(
@@ -94,6 +100,8 @@ def generate_launch_description():
             imu_topic,
             "--record_to",
             record_dst,
+            "--watchdog_ignore",
+            watchdog_ignore,
             "--plot",
         ],
         output="log",
@@ -106,7 +114,7 @@ def generate_launch_description():
     ld.add_action(declare_publish_path_arg)
     ld.add_action(declare_record_dst_arg)
     ld.add_action(declare_imu_topic_arg)
-    ld.add_action(declare_imu_topic_arg)
+    ld.add_action(declare_watchdog_ignore_arg)
 
     ld.add_action(path_publisher_exec)
     ld.add_action(trajectory_recorder_exec)

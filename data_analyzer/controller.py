@@ -12,6 +12,7 @@ from rclpy.logging import get_logger
 from .registrator import create_pose_subscriber, create_imu_subscriber, Subscriber
 from .recorder import Recorder, create_recorder
 from .plotter import plot_2d_traj, plot_imu_data
+from .watchdog import WatchdogTimer
 
 
 class Controller:
@@ -19,18 +20,47 @@ class Controller:
     thread: threading.Thread = None
     _nodes: List[Subscriber]
     _recorders: List[Recorder]
+    _logger: "RcutilsLogger"
+    _wd : WatchdogTimer
 
-    def __init__(self):
+    def __init__(self, timeout: float = 5.0, watchdog_ignore: List[str] = None):
         self.executor = MultiThreadedExecutor()
         self._nodes = []
         self._recorders = []
         self._logger = get_logger(__name__)
+        self._wd = WatchdogTimer(
+            timeout=timeout,
+            timeout_handler=self.save_all,
+            send_signal=False,
+        )
+        self._watchdog_ignore = self._normalize_watchdog_ignore(watchdog_ignore)
+
+    def _normalize_watchdog_ignore(self, watchdog_ignore: List[str] | None) -> set[str]:
+        if not watchdog_ignore:
+            return set()
+        normalized: set[str] = set()
+        for item in watchdog_ignore:
+            if not item:
+                continue
+            for part in item.split(","):
+                part = part.strip()
+                if not part:
+                    continue
+                normalized.add(part)
+                normalized.add(part.lstrip("/"))
+                normalized.add(f"/{part.lstrip('/')}")
+        return normalized
+
+    def _should_watchdog(self, topic: str) -> bool:
+        return topic not in self._watchdog_ignore
 
     def register(self, topic: str, name: str = "", timeout: float = 1.0):
         if not name:
             name = topic.replace("/", "_")
 
         _node = create_pose_subscriber(topic=topic, node_name=name, timeout=timeout)
+        if self._should_watchdog(topic):
+            _node.set_watchdog(self._wd)
         self._nodes.append(_node)
         self.executor.add_node(_node)
         self._logger.info(
@@ -43,6 +73,8 @@ class Controller:
             name = topic.replace("/", "_")
 
         _node = create_imu_subscriber(topic=topic, node_name=name)
+        if self._should_watchdog(topic):
+            _node.set_watchdog(self._wd)
         self._nodes.append(_node)
         self.executor.add_node(_node)
         self._logger.info(
@@ -55,11 +87,16 @@ class Controller:
         return self._nodes
 
     def run(self):
+        self._wd.start()
         self.thread = threading.Thread(target=self.executor.spin, daemon=True)
         self.thread.start()
 
     def stop(self):
+        self._wd.stop()
         self.thread.join()
+
+    def set_watchdog_timeout_handler(self, timeout_handler) -> None:
+        self._wd.set_timeout_handler(timeout_handler)
 
     def add_recorder(self, node: Subscriber, target_path: str):
         target_file = self._resolve_target_file(node=node, target_path=target_path)
@@ -136,6 +173,14 @@ def parse_args():
         required=False,
         help="Additional topic for IMU data in the format TOPIC:[NAME]",
     )
+    record_parser.add_argument(
+        "--watchdog_ignore",
+        nargs="*",
+        default=[],
+        help=(
+            "Topics that should not ping the watchdog (space- or comma-separated)."
+        ),
+    )
 
     plot_parser = subparsers.add_parser(
         "plot", help="Plot trajectories from recorded data"
@@ -173,7 +218,7 @@ def main():
 
     topics = get_topics(args.topics)
     rclpy.init()
-    controller = Controller()
+    controller = Controller(watchdog_ignore=args.watchdog_ignore)
     stop_event = threading.Event()
     shutdown_lock = threading.Lock()
     shutdown_done = False
@@ -210,6 +255,16 @@ def main():
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
+    def on_watchdog_timeout():
+        save_once()
+        stop_event.set()
+        try:
+            rclpy.shutdown()
+        except Exception:
+            pass
+
+    controller.set_watchdog_timeout_handler(on_watchdog_timeout)
+
     timeout = args.timeout
 
     for topic, name in topics.items():
@@ -224,16 +279,28 @@ def main():
             controller.add_recorder(node=node, target_path=args.record_to)
 
     controller.run()
+    plot_thread = None
+    if args.plot:
+        plot_thread = threading.Thread(
+            target=plot_2d_traj,
+            kwargs={"subscribers": controller.nodes},
+            daemon=True,
+        )
+        plot_thread.start()
+
     try:
-        if args.plot:
-            plot_2d_traj(subscribers=controller.nodes)
-            # plot_imu_data(subscribers=controller.nodes)
-        else:
-            stop_event.wait()
+        stop_event.wait()
     except KeyboardInterrupt:
         pass
     finally:
         save_once()
+        if args.plot:
+            try:
+                import matplotlib.pyplot as plt
+
+                plt.close("all")
+            except Exception:
+                pass
         try:
             rclpy.shutdown()
         except Exception:

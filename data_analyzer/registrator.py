@@ -26,6 +26,7 @@ from .models import (
     AngularVelocityData,
     LinearAccelerationData,
 )
+from .watchdog import WatchdogTimer
 
 logger = get_logger(__name__)
 
@@ -43,10 +44,11 @@ class Subscriber(Node):
         self.model = model
         super().__init__(model.node_name)
         self.subscription = self.create_subscription(
-            model.msg_type, model.topic, self.run_callback, 20
+            model.msg_type, model.topic, self._run_callback, 20
         )
         self._lock = Lock()
         self._data_callbacks: list[Callable[[Data], None]] = []
+        self._watchdog: Optional[WatchdogTimer] = None
 
     def __repr__(self):
         return self.name
@@ -61,6 +63,21 @@ class Subscriber(Node):
 
     def run_callback(self, msg):
         raise NotImplementedError
+
+    def _run_callback(self, msg):
+        self._ping_watchdog()
+        self.run_callback(msg)
+
+    def _ping_watchdog(self) -> None:
+        if self._watchdog:
+            self.get_logger().debug(
+                f"Watchdog ping from {self.model.node_name} on {self.model.topic}"
+            )
+            self._watchdog.ping()
+
+    def set_watchdog(self, watchdog: Optional[WatchdogTimer]) -> None:
+        self.get_logger().info(f"Setting watchdog: {watchdog}")
+        self._watchdog = watchdog
 
     def add_data_callback(self, callback: Callable[[Data], None]) -> None:
         self._data_callbacks.append(callback)
