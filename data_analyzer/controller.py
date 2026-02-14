@@ -46,7 +46,7 @@ class Controller:
         self._nodes.append(_node)
         self.executor.add_node(_node)
         self._logger.info(
-            f"Subscriber {_node} of type {_node.model.msg_type} is registered!"
+            f"Subscriber {_node} for topic {topic} of type {_node.model.msg_type} is registered!"
         )
         return _node
 

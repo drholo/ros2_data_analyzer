@@ -22,7 +22,11 @@ def generate_launch_description():
         "odometry/filtered:EKF",
         "amcl_pose:AMCL",
     ]
-
+    declare_imu_topic_arg = DeclareLaunchArgument(
+        "imu_topic",
+        default_value="imu_filtered:IMU",
+        description="IMU topic to subscribe to",
+    )
     declare_base_frame_arg = DeclareLaunchArgument(
         "base_frame",
         default_value="base_link",
@@ -108,6 +112,7 @@ def generate_launch_description():
     ld.add_action(declare_record_dst_arg)
     ld.add_action(declare_imu_topic_arg)
     ld.add_action(declare_plot_online_arg)
+    ld.add_action(declare_imu_topic_arg)
 
     ld.add_action(path_publisher_exec)
     ld.add_action(trajectory_recorder_exec)
