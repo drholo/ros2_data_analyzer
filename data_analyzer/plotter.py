@@ -1,6 +1,5 @@
 import json
 import math
-from os import path
 from pathlib import Path
 from typing import Iterable, Optional, Sequence, Union
 
@@ -212,70 +211,66 @@ def plot_imu_data(
         orientations = subscriber.model.orientation
         angular_velocity = subscriber.model.angular_velocity
         linear_acceleration = subscriber.model.linear_acceleration
-        or_axes = axes[0]
+        or_axes, av_axes, la_axes = axes
         or_axes.plot(
             timestamps,
             [o[0] for o in orientations],
-            label=f"{subscriber.model.node_name} - Roll",
+            label="R",
         )
         or_axes.plot(
             timestamps,
             [o[1] for o in orientations],
-            label=f"{subscriber.model.node_name} - Pitch",
+            label="P",
         )
         or_axes.plot(
             timestamps,
             [o[2] for o in orientations],
-            label=f"{subscriber.model.node_name} - Yaw",
+            label="Y",
         )
-        av_axes = axes[1]
         av_axes.plot(
             timestamps,
             [av[0] for av in angular_velocity],
-            label=f"{subscriber.model.node_name} - Angular Velocity X",
+            label="x'",
         )
         av_axes.plot(
             timestamps,
             [av[1] for av in angular_velocity],
-            label=f"{subscriber.model.node_name} - Angular Velocity Y",
+            label="y'",
         )
         av_axes.plot(
             timestamps,
             [av[2] for av in angular_velocity],
-            label=f"{subscriber.model.node_name} - Angular Velocity Z",
+            label="z'",
         )
-        la_axes = axes[2]
         la_axes.plot(
             timestamps,
             [la[0] for la in linear_acceleration],
-            label=f"{subscriber.model.node_name} - Linear Acceleration X",
+            label='x"',
         )
         la_axes.plot(
             timestamps,
             [la[1] for la in linear_acceleration],
-            label=f"{subscriber.model.node_name} - Linear Acceleration Y",
+            label='y"',
         )
         la_axes.plot(
             timestamps,
             [la[2] for la in linear_acceleration],
-            label=f"{subscriber.model.node_name} - Linear Acceleration Z",
+            label='z"',
         )
 
-    axes[0].set_title("IMU Orientation Over Time", fontsize=14, fontweight="bold")
+    axes[0].set_title("IMU Orientation", fontsize=14, fontweight="bold")
     axes[0].set_xlabel("Time [s]", fontsize=12)
-    axes[0].set_ylabel("Orientation (radians)", fontsize=12)
+    axes[0].set_ylabel("Orientation (rad)", fontsize=12)
     axes[0].legend(loc="best", fontsize=11)
     axes[0].grid(True, linestyle="-.", alpha=0.3)
 
-    axes[1].set_title("IMU Angular Velocity Over Time", fontsize=14, fontweight="bold")
+    axes[1].set_title("IMU Angular Velocity", fontsize=14, fontweight="bold")
     axes[1].set_xlabel("Time [s]", fontsize=12)
     axes[1].set_ylabel("Angular Velocity (rad/s)", fontsize=12)
     axes[1].legend(loc="best", fontsize=11)
     axes[1].grid(True, linestyle="-.", alpha=0.3)
 
-    axes[2].set_title(
-        "IMU Linear Acceleration Over Time", fontsize=14, fontweight="bold"
-    )
+    axes[2].set_title("IMU Linear Acceleration", fontsize=14, fontweight="bold")
     axes[2].set_xlabel("Time [s]", fontsize=12)
     axes[2].set_ylabel("Linear Acceleration (m/s²)", fontsize=12)
     axes[2].legend(loc="best", fontsize=11)
@@ -286,14 +281,7 @@ def plot_imu_data(
 
 
 def _quaternion_to_euler(q_w, q_x, q_y, q_z):
-
-    # Roll (x-axis rotation)
     roll = math.atan2(2 * (q_w * q_x + q_y * q_z), 1 - 2 * (q_x**2 + q_y**2))
-
-    # Pitch (y-axis rotation)
     pitch = math.asin(2 * (q_w * q_y - q_z * q_x))
-
-    # Yaw (z-axis rotation)
     yaw = math.atan2(2 * (q_w * q_z + q_x * q_y), 1 - 2 * (q_y**2 + q_z**2))
-
     return (roll, pitch, yaw)
