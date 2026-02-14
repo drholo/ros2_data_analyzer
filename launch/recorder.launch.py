@@ -61,11 +61,6 @@ def generate_launch_description():
         ).as_posix(),
         description="Destination path for rosbag recording",
     )
-    declare_plot_online_arg = DeclareLaunchArgument(
-        "plot_online",
-        default_value="false",
-        description="Enable online plotting of trajectories",
-    )
 
     data_analyzer_prefix = get_package_prefix("data_analyzer")
     path_publisher_entrypoint = Path(
@@ -111,7 +106,6 @@ def generate_launch_description():
     ld.add_action(declare_publish_path_arg)
     ld.add_action(declare_record_dst_arg)
     ld.add_action(declare_imu_topic_arg)
-    ld.add_action(declare_plot_online_arg)
     ld.add_action(declare_imu_topic_arg)
 
     ld.add_action(path_publisher_exec)
