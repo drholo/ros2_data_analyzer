@@ -15,13 +15,18 @@ def generate_launch_description():
     path_topic = LaunchConfiguration("path_topic")
     publish_path = LaunchConfiguration("publish_path")
     record_dst = LaunchConfiguration("record_dst")
+    imu_topic = LaunchConfiguration("imu_topic")
 
     record_topics = [
         "tf_path:TF",
         "odometry/filtered:EKF",
         "amcl_pose:AMCL",
     ]
-
+    declare_imu_topic_arg = DeclareLaunchArgument(
+        "imu_topic",
+        default_value="imu_filtered:IMU",
+        description="IMU topic to subscribe to",
+    )
     declare_base_frame_arg = DeclareLaunchArgument(
         "base_frame",
         default_value="base_link",
@@ -42,6 +47,11 @@ def generate_launch_description():
         default_value="true",
         description="Enable Path publishing",
     )
+    declare_imu_topic_arg = DeclareLaunchArgument(
+        "imu_topic",
+        default_value="ouster/imu:IMU",
+        description="IMU data topic",
+    )
     declare_record_dst_arg = DeclareLaunchArgument(
         "record_dst",
         default_value=Path(
@@ -50,11 +60,6 @@ def generate_launch_description():
             f"record_{datetime.now():%Y_%m_%d_%H_%M_%S}",
         ).as_posix(),
         description="Destination path for rosbag recording",
-    )
-    declare_plot_online_arg = DeclareLaunchArgument(
-        "plot_online",
-        default_value="false",
-        description="Enable online plotting of trajectories",
     )
 
     data_analyzer_prefix = get_package_prefix("data_analyzer")
@@ -85,9 +90,11 @@ def generate_launch_description():
             controller_entrypoint.as_posix(),
             "record",
             *record_topics,
+            "--imu",
+            imu_topic,
             "--record_to",
             record_dst,
-            "--plot"
+            "--plot",
         ],
         output="log",
     )
@@ -98,7 +105,8 @@ def generate_launch_description():
     ld.add_action(declare_path_topic_arg)
     ld.add_action(declare_publish_path_arg)
     ld.add_action(declare_record_dst_arg)
-    ld.add_action(declare_plot_online_arg)
+    ld.add_action(declare_imu_topic_arg)
+    ld.add_action(declare_imu_topic_arg)
 
     ld.add_action(path_publisher_exec)
     ld.add_action(trajectory_recorder_exec)

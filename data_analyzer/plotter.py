@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+import math
 from pathlib import Path
 from typing import Iterable, Optional, Sequence, Union
 
@@ -7,20 +7,36 @@ import matplotlib.animation as anim
 import matplotlib.pyplot as plt
 from cycler import cycler
 
-try:
-    from .registrator import Subscriber
-except ImportError:
-    from registrator import Subscriber
+from .registrator import Subscriber
+from .models import ImuPlotModel, TrajectoryPlotModel
 
 
-@dataclass
-class PlotModel:
-    node_name: str
+class RecorderIMU:
+    def __init__(
+        self,
+        name: str,
+        timestamps: list[float],
+        orientations: list[tuple],
+        angular_velocity: list[tuple],
+        linear_acceleration: list[tuple],
+    ):
+        self.model = ImuPlotModel(
+            node_name=name,
+            timestamps=timestamps,
+            orientation=orientations,
+            angular_velocity=angular_velocity,
+            linear_acceleration=linear_acceleration,
+        )
+        self._timestamps = timestamps
+        self._orientations = orientations
+
+    def get_trajectory_data(self):
+        return self._timestamps, self._orientations
 
 
 class RecordedTrajectory:
     def __init__(self, name: str, x: list[float], y: list[float]):
-        self.model = PlotModel(node_name=name)
+        self.model = TrajectoryPlotModel(node_name=name, x=x, y=y)
         self._x = x
         self._y = y
 
@@ -44,6 +60,9 @@ def _load_recorded_trajectories(
 ) -> list[RecordedTrajectory]:
     trajectories: list[RecordedTrajectory] = []
     for path in _collect_record_files(paths):
+        if "imu" in path.stem.lower():
+            # dirty fix for skipping IMU data files when loading trajectories
+            continue
         with open(path, "r") as file:
             payload = json.load(file)
 
@@ -53,6 +72,66 @@ def _load_recorded_trajectories(
         y = [point["position"]["y"] for point in data_points if "position" in point]
         trajectories.append(RecordedTrajectory(name=record_name, x=x, y=y))
     return trajectories
+
+
+def _load_recorded_imu_data(paths: Iterable[Union[str, Path]]) -> list[RecorderIMU]:
+    imu_data_list: list[RecorderIMU] = []
+    for path in _collect_record_files(paths):
+        with open(path, "r") as file:
+            payload = json.load(file)
+        record_name = payload.get("record_name") or path.stem
+        data_points = payload.get("data", [])
+
+        valid_points = [
+            point
+            for point in data_points
+            if all(
+                key in point
+                for key in [
+                    "timestamp",
+                    "orientation",
+                    "angular_velocity",
+                    "linear_acceleration",
+                ]
+            )
+        ]
+
+        timestamps = [point["timestamp"] for point in valid_points]
+        orientations = [
+            _quaternion_to_euler(
+                point["orientation"]["x"],
+                point["orientation"]["y"],
+                point["orientation"]["z"],
+                point["orientation"]["w"],
+            )
+            for point in valid_points
+        ]
+        angular_velocity = [
+            (
+                point["angular_velocity"]["x"],
+                point["angular_velocity"]["y"],
+                point["angular_velocity"]["z"],
+            )
+            for point in valid_points
+        ]
+        linear_acceleration = [
+            (
+                point["linear_acceleration"]["x"],
+                point["linear_acceleration"]["y"],
+                point["linear_acceleration"]["z"],
+            )
+            for point in valid_points
+        ]
+        imu_data_list.append(
+            RecorderIMU(
+                name=record_name,
+                timestamps=timestamps,
+                orientations=orientations,
+                angular_velocity=angular_velocity,
+                linear_acceleration=linear_acceleration,
+            )
+        )
+    return imu_data_list
 
 
 def plot_2d_traj(
@@ -71,7 +150,6 @@ def plot_2d_traj(
     fig, ax = plt.subplots()
     fig.patch.set_facecolor("white")
 
-    # Set up color cycle for multiple trajectories
     colors = ["blue", "red", "orange", "purple", "green", "brown"]
     ax.set_prop_cycle(cycler("color", colors))
 
@@ -84,6 +162,8 @@ def plot_2d_traj(
         _my = []
 
         for subscriber in subscribers:
+            if "imu" in subscriber.model.node_name.lower():
+                continue
             x, y = subscriber.get_trajectory_data()
             if len(x) > 0 and len(y) > 0:
                 ax.plot(x, y, label=subscriber.model.node_name, alpha=0.8)
@@ -110,3 +190,98 @@ def plot_2d_traj(
     else:
         update_plot()
     plt.show()
+
+
+def plot_imu_data(
+    *,
+    subscribers: Optional[Sequence[Union[RecorderIMU, Subscriber]]] = None,
+    recorded_paths: Optional[Union[str, Path, list[Union[str, Path]]]] = None,
+):
+    if recorded_paths:
+        paths = recorded_paths if isinstance(recorded_paths, list) else [recorded_paths]
+        subscribers = _load_recorded_imu_data(paths)
+
+    fig, axes = plt.subplots(3, 1, figsize=(10, 8))
+    fig.patch.set_facecolor("white")
+
+    for subscriber in subscribers:
+        if "imu" not in subscriber.model.node_name.lower():
+            continue
+        timestamps = subscriber.model.timestamps
+        orientations = subscriber.model.orientation
+        angular_velocity = subscriber.model.angular_velocity
+        linear_acceleration = subscriber.model.linear_acceleration
+        or_axes, av_axes, la_axes = axes
+        or_axes.plot(
+            timestamps,
+            [o[0] for o in orientations],
+            label="R",
+        )
+        or_axes.plot(
+            timestamps,
+            [o[1] for o in orientations],
+            label="P",
+        )
+        or_axes.plot(
+            timestamps,
+            [o[2] for o in orientations],
+            label="Y",
+        )
+        av_axes.plot(
+            timestamps,
+            [av[0] for av in angular_velocity],
+            label="x'",
+        )
+        av_axes.plot(
+            timestamps,
+            [av[1] for av in angular_velocity],
+            label="y'",
+        )
+        av_axes.plot(
+            timestamps,
+            [av[2] for av in angular_velocity],
+            label="z'",
+        )
+        la_axes.plot(
+            timestamps,
+            [la[0] for la in linear_acceleration],
+            label='x"',
+        )
+        la_axes.plot(
+            timestamps,
+            [la[1] for la in linear_acceleration],
+            label='y"',
+        )
+        la_axes.plot(
+            timestamps,
+            [la[2] for la in linear_acceleration],
+            label='z"',
+        )
+
+    axes[0].set_title("IMU Orientation", fontsize=14, fontweight="bold")
+    axes[0].set_xlabel("Time [s]", fontsize=12)
+    axes[0].set_ylabel("Orientation (rad)", fontsize=12)
+    axes[0].legend(loc="best", fontsize=11)
+    axes[0].grid(True, linestyle="-.", alpha=0.3)
+
+    axes[1].set_title("IMU Angular Velocity", fontsize=14, fontweight="bold")
+    axes[1].set_xlabel("Time [s]", fontsize=12)
+    axes[1].set_ylabel("Angular Velocity (rad/s)", fontsize=12)
+    axes[1].legend(loc="best", fontsize=11)
+    axes[1].grid(True, linestyle="-.", alpha=0.3)
+
+    axes[2].set_title("IMU Linear Acceleration", fontsize=14, fontweight="bold")
+    axes[2].set_xlabel("Time [s]", fontsize=12)
+    axes[2].set_ylabel("Linear Acceleration (m/s²)", fontsize=12)
+    axes[2].legend(loc="best", fontsize=11)
+    axes[2].grid(True, linestyle="-.", alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+
+def _quaternion_to_euler(q_w, q_x, q_y, q_z):
+    roll = math.atan2(2 * (q_w * q_x + q_y * q_z), 1 - 2 * (q_x**2 + q_y**2))
+    pitch = math.asin(2 * (q_w * q_y - q_z * q_x))
+    yaw = math.atan2(2 * (q_w * q_z + q_x * q_y), 1 - 2 * (q_y**2 + q_z**2))
+    return (roll, pitch, yaw)

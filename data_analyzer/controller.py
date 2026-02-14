@@ -9,14 +9,9 @@ import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.logging import get_logger
 
-try:
-    from .registrator import create_pose_subscriber, Subscriber
-    from .recorder import Recorder, create_recorder
-    from .plotter import plot_2d_traj
-except ImportError:
-    from registrator import create_pose_subscriber, Subscriber
-    from recorder import Recorder, create_recorder
-    from plotter import plot_2d_traj
+from .registrator import create_pose_subscriber, create_imu_subscriber, Subscriber
+from .recorder import Recorder, create_recorder
+from .plotter import plot_2d_traj, plot_imu_data
 
 
 class Controller:
@@ -40,6 +35,18 @@ class Controller:
         self.executor.add_node(_node)
         self._logger.info(
             f"Subscriber {_node} of type {_node.model.msg_type} is registered!"
+        )
+        return _node
+
+    def register_imu(self, topic: str, name: str = "", timeout: float = 1.0):
+        if not name:
+            name = topic.replace("/", "_")
+
+        _node = create_imu_subscriber(topic=topic, node_name=name)
+        self._nodes.append(_node)
+        self.executor.add_node(_node)
+        self._logger.info(
+            f"Subscriber {_node} for topic {topic} of type {_node.model.msg_type} is registered!"
         )
         return _node
 
@@ -123,6 +130,12 @@ def parse_args():
         required=False,
         help="Path to save the recorded data in JSON format",
     )
+    record_parser.add_argument(
+        "--imu",
+        type=str,
+        required=False,
+        help="Additional topic for IMU data in the format TOPIC:[NAME]",
+    )
 
     plot_parser = subparsers.add_parser(
         "plot", help="Plot trajectories from recorded data"
@@ -136,9 +149,11 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_topics(args):
+def get_topics(arg):
+    if isinstance(arg, str):
+        arg = [arg]
     topics = {}
-    for topic in args.topics:
+    for topic in arg:
         try:
             _t, _n = topic.split(":")
         except ValueError:
@@ -153,9 +168,10 @@ def main():
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
     if args.command == "plot":
         plot_2d_traj(recorded_paths=args.paths)
+        plot_imu_data(recorded_paths=args.paths)
         return
 
-    topics = get_topics(args)
+    topics = get_topics(args.topics)
     rclpy.init()
     controller = Controller()
     stop_event = threading.Event()
@@ -199,6 +215,10 @@ def main():
     for topic, name in topics.items():
         controller.register(topic=topic, name=name, timeout=timeout)
 
+    if args.imu:
+        imu_topic, imu_name = get_topics(args.imu).popitem()
+        controller.register_imu(topic=imu_topic, name=imu_name, timeout=timeout)
+
     if args.record_to:
         for node in controller.nodes:
             controller.add_recorder(node=node, target_path=args.record_to)
@@ -207,6 +227,7 @@ def main():
     try:
         if args.plot:
             plot_2d_traj(subscribers=controller.nodes)
+            # plot_imu_data(subscribers=controller.nodes)
         else:
             stop_event.wait()
     except KeyboardInterrupt:

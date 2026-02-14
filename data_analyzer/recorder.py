@@ -1,65 +1,10 @@
 import json
-from dataclasses import dataclass
-from pathlib import Path
-from typing import TYPE_CHECKING, Union
 
+try:
+    from .models import Data, DataModel, RecorderModel
+except ImportError:
+    from models import Data, DataModel, RecorderModel
 from rclpy.logging import get_logger
-
-if TYPE_CHECKING:
-    from .registrator import Subscriber
-
-
-@dataclass
-class PositionData:
-    x: float
-    y: float
-    z: float
-
-
-@dataclass
-class OrientationData:
-    x: float
-    y: float
-    z: float
-    w: float
-
-
-@dataclass
-class OrientationEulerData:
-    roll: float
-    pitch: float
-    yaw: float
-
-
-@dataclass
-class Data:
-    timestamp: float
-    position: PositionData
-    orientation: OrientationData
-
-
-@dataclass
-class DataModel:
-    record_name: str
-    data: list[Data]
-
-
-@dataclass
-class RecorderModel:
-    recorder_name: str
-    target_file: Union[str, Path]
-    subscriber: "Subscriber"
-    data: DataModel
-
-    def __post_init__(self):
-        if not self.recorder_name:
-            self.recorder_name = f"recorder_{self.subscriber.model.node_name}"
-        if not self.target_file:
-            self.target_file = Path(f"data/{self.recorder_name}.json")
-        if isinstance(self.target_file, str):
-            self.target_file = Path(self.target_file)
-        if not self.target_file.parent.exists():
-            self.target_file.parent.mkdir(parents=True, exist_ok=True)
 
 
 class Recorder:

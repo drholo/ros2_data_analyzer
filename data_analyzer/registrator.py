@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from threading import Lock
 from typing import Callable, Optional, Type, override
 
@@ -7,6 +6,7 @@ from geometry_msgs.msg import (
     PoseWithCovarianceStamped,
     TransformStamped,
 )
+from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry, Path
 from rclpy import spin_once
 from rclpy.logging import get_logger
@@ -16,30 +16,18 @@ from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
-try:
-    from .recorder import Data, OrientationData, PositionData
-except ImportError:
-    from recorder import Data, OrientationData, PositionData
+from .models import (
+    SubscriberModel,
+    TransformSubscriberModel,
+    ImuData,
+    Data,
+    PositionData,
+    OrientationData,
+    AngularVelocityData,
+    LinearAccelerationData,
+)
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class NodeModel:
-    node_name: str
-
-
-@dataclass
-class SubscriberModel(NodeModel):
-    topic: str
-    msg_type: Type
-
-
-@dataclass
-class TransformSubscriberModel(NodeModel):
-    target_frame: str
-    source_frame: str
-    timer: float = 0.1
 
 
 SUPPORTED_MSG_TYPES = {
@@ -190,10 +178,16 @@ def create_pose_subscriber(
             msg_type = get_msg_type(topic, timeout=timeout)
         except ValueError as err:
             logger.error(f"Error determining message type for topic '{topic}': {err}")
-            logger.error(
-                f"Setting default message type to Odometry for topic '{topic}'"
-            )
-            msg_type = Odometry
+            if "amcl_pose" in topic.lower():
+                logger.error(
+                    f"Setting default message type to PoseWithCovarianceStamped for topic '{topic}'"
+                )
+                msg_type = PoseWithCovarianceStamped
+            else:
+                logger.error(
+                    f"Setting default message type to Odometry for topic '{topic}'"
+                )
+                msg_type = Odometry
 
     if msg_type in SUPPORTED_MSG_TYPES.values():
         return PoseSubscriber(
@@ -280,6 +274,91 @@ class TransformSubscriber(Node):
 
     def cb_data_process(self, tf_data: TransformStamped):
         pass
+
+
+class ImuSubscriber(Subscriber):
+    def __init__(self, model: SubscriberModel):
+        super().__init__(model=model)
+        self._acc: list[LinearAccelerationData] = []
+        self._angular_velocity: list[AngularVelocityData] = []
+        self._orientation: list[OrientationData] = []
+
+    @override
+    def run_callback(self, msg):
+        self.get_logger().debug(
+            f"Received {self.model.msg_type.__name__} message from topic {self.model.topic}"
+        )
+        self.get_logger().debug(
+            f"Orientation: {msg.orientation}, "
+            f"Angular Velocity: {msg.angular_velocity}, "
+            f"Linear Acceleration: {msg.linear_acceleration}"
+        )
+
+        imu_data = self.get_imu_measurements(msg)
+        if imu_data:
+            self.update_data(imu_data)
+            self.return_data(imu_data)
+
+    def update_data(self, imu_msg: ImuData):
+        with self._lock:
+            self._orientation.append(imu_msg.orientation)
+            self._angular_velocity.append(imu_msg.angular_velocity)
+            self._acc.append(imu_msg.linear_acceleration)
+
+    def get_imu_measurements(self, msg) -> Optional[ImuData]:
+        if isinstance(msg, Imu):
+            orientation = OrientationData(
+                x=msg.orientation.x,
+                y=msg.orientation.y,
+                z=msg.orientation.z,
+                w=msg.orientation.w,
+            )
+            angular_velocity = AngularVelocityData(
+                x=msg.angular_velocity.x,
+                y=msg.angular_velocity.y,
+                z=msg.angular_velocity.z,
+            )
+            linear_acceleration = LinearAccelerationData(
+                x=msg.linear_acceleration.x,
+                y=msg.linear_acceleration.y,
+                z=msg.linear_acceleration.z,
+            )
+            return ImuData(
+                timestamp=self._extract_timestamp(msg),
+                position=PositionData(
+                    x=0.0, y=0.0, z=0.0
+                ),  # Placeholder, update as needed
+                orientation=orientation,
+                angular_velocity=angular_velocity,
+                linear_acceleration=linear_acceleration,
+            )
+        else:
+            self.get_logger().error(
+                "Unsupported type of message. Should be one of: [sensor_msgs/msg/Imu]"
+            )
+            return None
+
+    def return_data(self, imu_data):
+        self._emit_data(imu_data)
+
+    def _extract_timestamp(self, msg) -> float:
+        if hasattr(msg, "header"):
+            stamp = msg.header.stamp
+            return float(stamp.sec) + float(stamp.nanosec) * 1e-9
+
+        return float(self.get_clock().now().nanoseconds) * 1e-9
+
+
+def create_imu_subscriber(
+    topic: str,
+    node_name: str = "",
+) -> ImuSubscriber:
+    if not node_name:
+        node_name = topic.replace("/", "_") + "_subscriber"
+
+    return ImuSubscriber(
+        SubscriberModel(node_name=node_name, topic=topic, msg_type=Imu)
+    )
 
 
 def get_position(pose):
