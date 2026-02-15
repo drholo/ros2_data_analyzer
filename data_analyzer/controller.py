@@ -6,7 +6,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
@@ -25,12 +25,13 @@ class Controller:
     _recorders: List[Recorder]
     _logger: "RcutilsLogger"
     _wd: WatchdogTimer
-    _path_publisher_pid: Optional[int] = None
+    _kick_pid_list: Optional[List[int]]
 
     def __init__(self, timeout: float = 5.0, watchdog_ignore: List[str] = None):
         self.executor = MultiThreadedExecutor()
         self._nodes = []
         self._recorders = []
+        self._kick_pid_list = []
         self._logger = get_logger(__name__)
         self._wd = WatchdogTimer(
             timeout=timeout,
@@ -104,28 +105,26 @@ class Controller:
     def set_watchdog_timeout_handler(self, timeout_handler) -> None:
         self._wd.set_timeout_handler(timeout_handler)
 
-    def set_path_publisher_process(self, pid: int) -> None:
-        self._path_publisher_pid = pid
+    def add_pid_to_kick(self, pid: Union[int, List[int]]) -> None:
+        if isinstance(pid, int):
+            self._kick_pid_list.append(pid)
+        else:
+            self._kick_pid_list.extend(pid)
 
-    def _terminate_path_publisher(self) -> None:
-        if self._path_publisher_pid:
-            try:
-                os.kill(self._path_publisher_pid, signal.SIGTERM)
-                # Wait a bit for graceful shutdown
-                time.sleep(2)
-                # Check if still alive
+    def _terminate_pids(self) -> None:
+        if self._kick_pid_list:
+            for pid in self._kick_pid_list:
                 try:
-                    os.kill(
-                        self._path_publisher_pid, 0
-                    )  # Signal 0 just checks if process exists
-                    self._logger.warning(
-                        f"path_publisher (PID {self._path_publisher_pid}) still alive, killing..."
-                    )
-                    os.kill(self._path_publisher_pid, signal.SIGKILL)
-                except OSError:
-                    pass  # Process already dead
-            except (ValueError, ProcessLookupError, Exception) as e:
-                self._logger.debug(f"Could not terminate path_publisher via PID: {e}")
+                    os.kill(pid, signal.SIGTERM)
+                    time.sleep(2)
+                    try:
+                        os.kill(pid, 0)
+                        self._logger.warning(f"Process {pid} still alive, killing...")
+                        os.kill(pid, signal.SIGKILL)
+                    except OSError:
+                        self._logger.debug(f"Process {pid} is successfully terminated.")
+                except (ValueError, ProcessLookupError, Exception) as e:
+                    self._logger.debug(f"Could not terminate process {pid}: {e}")
 
     def add_recorder(self, node: Subscriber, target_path: str):
         target_file = self._resolve_target_file(node=node, target_path=target_path)
@@ -216,7 +215,7 @@ def parse_args():
         help="Timeout in seconds for the watchdog to trigger if no pings are received",
     )
     record_parser.add_argument(
-        "--path_publisher_pid",
+        "--follow_pids",
         default=None,
         type=int,
         required=False,
@@ -297,7 +296,7 @@ def main():
     signal.signal(signal.SIGTERM, handle_signal)
 
     def on_watchdog_timeout():
-        controller._terminate_path_publisher()
+        controller._terminate_pids()
         save_once()
         stop_event.set()
         try:
@@ -320,8 +319,8 @@ def main():
         for node in controller.nodes:
             controller.add_recorder(node=node, target_path=args.record_to)
 
-    if args.path_publisher_pid:
-        controller.set_path_publisher_process(args.path_publisher_pid)
+    if args.follow_pids:
+        controller.add_pid_to_kick(args.follow_pids)
 
     controller.run()
     plot_thread = None

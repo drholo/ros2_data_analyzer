@@ -14,7 +14,6 @@ def generate_launch_description():
     base_frame = LaunchConfiguration("base_frame")
     map_frame = LaunchConfiguration("map_frame")
     path_topic = LaunchConfiguration("path_topic")
-    publish_path = LaunchConfiguration("publish_path")
     record_dst = LaunchConfiguration("record_dst")
     imu_topic = LaunchConfiguration("imu_topic")
     watchdog_ignore = LaunchConfiguration("watchdog_ignore")
@@ -91,7 +90,7 @@ def generate_launch_description():
         output="log",
     )
 
-    def launch_trajectory_recorder(event, context):
+    def launch_data_recorder(event, context):
         pid = str(event.pid)
 
         return [
@@ -106,7 +105,7 @@ def generate_launch_description():
                     record_dst,
                     "--watchdog_ignore",
                     watchdog_ignore,
-                    "--path_publisher_pid",
+                    "--follow_pids",
                     pid,
                     "--plot",
                 ],
@@ -114,10 +113,10 @@ def generate_launch_description():
             )
         ]
 
-    trajectory_recorder_handler = RegisterEventHandler(
+    data_recorder_handler = RegisterEventHandler(
         OnProcessStart(
             target_action=path_publisher_exec,
-            on_start=launch_trajectory_recorder,  # ← direct callable
+            on_start=launch_data_recorder,  # ← direct callable
         )
     )
 
@@ -131,6 +130,6 @@ def generate_launch_description():
     ld.add_action(declare_watchdog_ignore_arg)
 
     ld.add_action(path_publisher_exec)
-    ld.add_action(trajectory_recorder_handler)
+    ld.add_action(data_recorder_handler)
 
     return ld
