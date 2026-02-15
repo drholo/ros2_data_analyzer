@@ -85,7 +85,8 @@ def main():
         rclpy.spin(path_publisher)
     except KeyboardInterrupt:
         path_publisher.get_logger().info("Shutting down due to KeyboardInterrupt")
-    rclpy.shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()
 
 
 if __name__ == "__main__":
