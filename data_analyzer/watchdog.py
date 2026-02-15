@@ -19,7 +19,7 @@ class WatchdogTimer:
     _timeout_handler: Callable
     _send_signal: bool
     _logger: "RcutilsLogger"
-    
+
     def __init__(self, timeout, timeout_handler=None, send_signal: bool = True):
         self.timeout = timeout
         self._lock = Lock()

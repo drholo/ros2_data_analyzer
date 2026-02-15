@@ -1,9 +1,12 @@
 import argparse
 import logging
+import os
 import signal
+import subprocess
 import threading
+import time
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
@@ -21,7 +24,8 @@ class Controller:
     _nodes: List[Subscriber]
     _recorders: List[Recorder]
     _logger: "RcutilsLogger"
-    _wd : WatchdogTimer
+    _wd: WatchdogTimer
+    _path_publisher_pid: Optional[int] = None
 
     def __init__(self, timeout: float = 5.0, watchdog_ignore: List[str] = None):
         self.executor = MultiThreadedExecutor()
@@ -35,7 +39,9 @@ class Controller:
         )
         self._watchdog_ignore = self._normalize_watchdog_ignore(watchdog_ignore)
 
-    def _normalize_watchdog_ignore(self, watchdog_ignore: List[str] | None) -> set[str]:
+    def _normalize_watchdog_ignore(
+        self, watchdog_ignore: Optional[List[str]]
+    ) -> set[str]:
         if not watchdog_ignore:
             return set()
         normalized: set[str] = set()
@@ -51,15 +57,15 @@ class Controller:
                 normalized.add(f"/{part.lstrip('/')}")
         return normalized
 
-    def _should_watchdog(self, topic: str) -> bool:
-        return topic not in self._watchdog_ignore
+    def _skip_watchdog(self, topic: str) -> bool:
+        return topic in self._watchdog_ignore
 
     def register(self, topic: str, name: str = "", timeout: float = 1.0):
         if not name:
             name = topic.replace("/", "_")
 
         _node = create_pose_subscriber(topic=topic, node_name=name, timeout=timeout)
-        if self._should_watchdog(topic):
+        if not self._skip_watchdog(topic):
             _node.set_watchdog(self._wd)
         self._nodes.append(_node)
         self.executor.add_node(_node)
@@ -73,7 +79,7 @@ class Controller:
             name = topic.replace("/", "_")
 
         _node = create_imu_subscriber(topic=topic, node_name=name)
-        if self._should_watchdog(topic):
+        if not self._skip_watchdog(topic):
             _node.set_watchdog(self._wd)
         self._nodes.append(_node)
         self.executor.add_node(_node)
@@ -97,6 +103,29 @@ class Controller:
 
     def set_watchdog_timeout_handler(self, timeout_handler) -> None:
         self._wd.set_timeout_handler(timeout_handler)
+
+    def set_path_publisher_process(self, pid: int) -> None:
+        self._path_publisher_pid = pid
+
+    def _terminate_path_publisher(self) -> None:
+        if self._path_publisher_pid:
+            try:
+                os.kill(self._path_publisher_pid, signal.SIGTERM)
+                # Wait a bit for graceful shutdown
+                time.sleep(2)
+                # Check if still alive
+                try:
+                    os.kill(
+                        self._path_publisher_pid, 0
+                    )  # Signal 0 just checks if process exists
+                    self._logger.warning(
+                        f"path_publisher (PID {self._path_publisher_pid}) still alive, killing..."
+                    )
+                    os.kill(self._path_publisher_pid, signal.SIGKILL)
+                except OSError:
+                    pass  # Process already dead
+            except (ValueError, ProcessLookupError, Exception) as e:
+                self._logger.debug(f"Could not terminate path_publisher via PID: {e}")
 
     def add_recorder(self, node: Subscriber, target_path: str):
         target_file = self._resolve_target_file(node=node, target_path=target_path)
@@ -177,9 +206,21 @@ def parse_args():
         "--watchdog_ignore",
         nargs="*",
         default=[],
-        help=(
-            "Topics that should not ping the watchdog (space- or comma-separated)."
-        ),
+        help=("Topics that should not ping the watchdog (space- or comma-separated)."),
+    )
+    record_parser.add_argument(
+        "--watchdog_timeout",
+        default=5.0,
+        type=float,
+        required=False,
+        help="Timeout in seconds for the watchdog to trigger if no pings are received",
+    )
+    record_parser.add_argument(
+        "--path_publisher_pid",
+        default=None,
+        type=int,
+        required=False,
+        help="PID of the path_publisher process to terminate on watchdog timeout",
     )
 
     plot_parser = subparsers.add_parser(
@@ -256,6 +297,7 @@ def main():
     signal.signal(signal.SIGTERM, handle_signal)
 
     def on_watchdog_timeout():
+        controller._terminate_path_publisher()
         save_once()
         stop_event.set()
         try:
@@ -277,6 +319,9 @@ def main():
     if args.record_to:
         for node in controller.nodes:
             controller.add_recorder(node=node, target_path=args.record_to)
+
+    if args.path_publisher_pid:
+        controller.set_path_publisher_process(args.path_publisher_pid)
 
     controller.run()
     plot_thread = None

@@ -5,8 +5,9 @@ from ament_index_python import get_package_prefix, get_package_share_directory
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess
-from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
+from launch.actions import RegisterEventHandler, OpaqueFunction
+from launch.event_handlers import OnProcessStart
 
 
 def generate_launch_description():
@@ -87,24 +88,37 @@ def generate_launch_description():
             "--path_topic",
             path_topic,
         ],
-        condition=IfCondition(publish_path),
         output="log",
     )
 
-    trajectory_recorder_exec = ExecuteProcess(
-        cmd=[
-            controller_entrypoint.as_posix(),
-            "record",
-            *record_topics,
-            "--imu",
-            imu_topic,
-            "--record_to",
-            record_dst,
-            "--watchdog_ignore",
-            watchdog_ignore,
-            "--plot",
-        ],
-        output="log",
+    def launch_trajectory_recorder(event, context):
+        pid = str(event.pid)
+
+        return [
+            ExecuteProcess(
+                cmd=[
+                    controller_entrypoint.as_posix(),
+                    "record",
+                    *record_topics,
+                    "--imu",
+                    imu_topic,
+                    "--record_to",
+                    record_dst,
+                    "--watchdog_ignore",
+                    watchdog_ignore,
+                    "--path_publisher_pid",
+                    pid,
+                    "--plot",
+                ],
+                output="log",
+            )
+        ]
+
+    trajectory_recorder_handler = RegisterEventHandler(
+        OnProcessStart(
+            target_action=path_publisher_exec,
+            on_start=launch_trajectory_recorder,  # ← direct callable
+        )
     )
 
     ld = LaunchDescription()
@@ -117,6 +131,6 @@ def generate_launch_description():
     ld.add_action(declare_watchdog_ignore_arg)
 
     ld.add_action(path_publisher_exec)
-    ld.add_action(trajectory_recorder_exec)
+    ld.add_action(trajectory_recorder_handler)
 
     return ld
