@@ -27,14 +27,14 @@ class Controller:
     _wd: WatchdogTimer
     _kick_pid_list: Optional[List[int]]
 
-    def __init__(self, timeout: float = 5.0, watchdog_ignore: List[str] = None):
+    def __init__(self, wd_timeout: float = 5.0, watchdog_ignore: List[str] = None):
         self.executor = MultiThreadedExecutor()
         self._nodes = []
         self._recorders = []
         self._kick_pid_list = []
         self._logger = get_logger(__name__)
         self._wd = WatchdogTimer(
-            timeout=timeout,
+            timeout=wd_timeout,
             timeout_handler=self.save_all,
             send_signal=False,
         )
@@ -258,7 +258,9 @@ def main():
 
     topics = get_topics(args.topics)
     rclpy.init()
-    controller = Controller(watchdog_ignore=args.watchdog_ignore)
+    controller = Controller(
+        watchdog_ignore=args.watchdog_ignore, wd_timeout=args.watchdog_timeout
+    )
     stop_event = threading.Event()
     shutdown_lock = threading.Lock()
     shutdown_done = False

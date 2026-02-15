@@ -17,6 +17,7 @@ def generate_launch_description():
     record_dst = LaunchConfiguration("record_dst")
     imu_topic = LaunchConfiguration("imu_topic")
     watchdog_ignore = LaunchConfiguration("watchdog_ignore")
+    watchdog_timeout = LaunchConfiguration("watchdog_timeout")
 
     record_topics = [
         "tf_path:TF",
@@ -67,6 +68,11 @@ def generate_launch_description():
         default_value=path_topic,
         description="Topics that should not ping the watchdog",
     )
+    declare_watchdog_timeout_arg = DeclareLaunchArgument(
+        "watchdog_timeout",
+        default_value="5.0",
+        description="Watchdog timeout before kicking in seconds",
+    )
 
     data_analyzer_prefix = get_package_prefix("data_analyzer")
     path_publisher_entrypoint = Path(
@@ -105,6 +111,8 @@ def generate_launch_description():
                     record_dst,
                     "--watchdog_ignore",
                     watchdog_ignore,
+                    "--watchdog_timeout",
+                    watchdog_timeout,
                     "--follow_pids",
                     pid,
                     "--plot",
@@ -128,6 +136,7 @@ def generate_launch_description():
     ld.add_action(declare_record_dst_arg)
     ld.add_action(declare_imu_topic_arg)
     ld.add_action(declare_watchdog_ignore_arg)
+    ld.add_action(declare_watchdog_timeout_arg)
 
     ld.add_action(path_publisher_exec)
     ld.add_action(data_recorder_handler)
