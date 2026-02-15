@@ -2,11 +2,10 @@ import argparse
 import logging
 import os
 import signal
-import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
@@ -16,6 +15,10 @@ from .registrator import create_pose_subscriber, create_imu_subscriber, Subscrib
 from .recorder import Recorder, create_recorder
 from .plotter import plot_2d_traj, plot_imu_data
 from .watchdog import WatchdogTimer
+
+
+if TYPE_CHECKING:
+    from rclpy.impl.rcutils_logger import RcutilsLogger
 
 
 class Controller:
@@ -38,25 +41,14 @@ class Controller:
             timeout_handler=self.save_all,
             send_signal=False,
         )
-        self._watchdog_ignore = self._normalize_watchdog_ignore(watchdog_ignore)
+        self._watchdog_ignore = self._set_watchdog_ignore(watchdog_ignore)
 
-    def _normalize_watchdog_ignore(
-        self, watchdog_ignore: Optional[List[str]]
-    ) -> set[str]:
+    def _set_watchdog_ignore(self, watchdog_ignore: Optional[List[str]]) -> set[str]:
         if not watchdog_ignore:
             return set()
-        normalized: set[str] = set()
-        for item in watchdog_ignore:
-            if not item:
-                continue
-            for part in item.split(","):
-                part = part.strip()
-                if not part:
-                    continue
-                normalized.add(part)
-                normalized.add(part.lstrip("/"))
-                normalized.add(f"/{part.lstrip('/')}")
-        return normalized
+        return {
+            topic[1:] if topic.startswith("/") else topic for topic in watchdog_ignore
+        }
 
     def _skip_watchdog(self, topic: str) -> bool:
         return topic in self._watchdog_ignore

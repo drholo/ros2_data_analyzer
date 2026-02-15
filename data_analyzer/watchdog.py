@@ -53,7 +53,6 @@ class WatchdogTimer:
             handler = self._timeout_handler
         self._logger.error(
             f"Watchdog expired! Last ping {time.monotonic() - self._last_ping:.3f}s ago."
-            + (" Sending CTRL+C..." if self._send_signal else "")
         )
         self._logger.error(f"Process ID: {os.getpid()}")
         if handler:
