@@ -84,22 +84,3 @@ class WatchdogTimer:
         with self._lock:
             self._stopped = True
             self._stop_event.set()
-
-
-if __name__ == "__main__":
-
-    def save_everything():
-        print("Saving all data before shutdown...")
-
-    # Example usage
-    watchdog = WatchdogTimer(timeout=5, timeout_handler=save_everything)
-    watchdog.start()
-
-    try:
-        for _ in range(4):
-            time.sleep(1)
-            print("Ping watchdog")
-            watchdog.ping()
-    except KeyboardInterrupt:
-        print("Program interrupted by watchdog or user. Exiting...")
-        watchdog.stop()
