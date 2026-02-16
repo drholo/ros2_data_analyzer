@@ -4,10 +4,14 @@ from pathlib import Path
 from ament_index_python import get_package_prefix, get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
-from launch.substitutions import LaunchConfiguration
-from launch.actions import RegisterEventHandler, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    OpaqueFunction,
+    RegisterEventHandler,
+)
 from launch.event_handlers import OnProcessStart
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
@@ -78,7 +82,7 @@ def generate_launch_description():
         "amcl_pid",
         default_value="",
         description="PID of AMCL process",
-    )   
+    )
 
     data_analyzer_prefix = get_package_prefix("data_analyzer")
     path_publisher_entrypoint = Path(

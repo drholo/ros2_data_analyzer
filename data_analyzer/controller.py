@@ -236,7 +236,7 @@ def get_topics(arg):
             _t, _n = topic.split(":")
         except ValueError:
             _t = topic
-            _n = topic
+            _n = topic.replace("/", "_")
         topics[_t] = _n
     return topics
 
