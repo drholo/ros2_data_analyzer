@@ -18,6 +18,7 @@ def generate_launch_description():
     imu_topic = LaunchConfiguration("imu_topic")
     watchdog_ignore = LaunchConfiguration("watchdog_ignore")
     watchdog_timeout = LaunchConfiguration("watchdog_timeout")
+    amcl_pid = LaunchConfiguration("amcl_pid")
 
     record_topics = [
         "tf_path:TF",
@@ -73,6 +74,11 @@ def generate_launch_description():
         default_value="5.0",
         description="Watchdog timeout before kicking in seconds",
     )
+    declare_amcl_pid_arg = DeclareLaunchArgument(
+        "amcl_pid",
+        default_value="",
+        description="PID of AMCL process",
+    )   
 
     data_analyzer_prefix = get_package_prefix("data_analyzer")
     path_publisher_entrypoint = Path(
@@ -115,6 +121,7 @@ def generate_launch_description():
                     watchdog_timeout,
                     "--follow_pids",
                     pid,
+                    amcl_pid,
                     "--plot",
                 ],
                 output="log",
@@ -139,6 +146,7 @@ def generate_launch_description():
     ld.add_action(declare_watchdog_timeout_arg)
 
     ld.add_action(path_publisher_exec)
+    ld.add_action(declare_amcl_pid_arg)
     ld.add_action(data_recorder_handler)
 
     return ld

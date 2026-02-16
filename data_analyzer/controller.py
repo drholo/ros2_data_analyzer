@@ -209,6 +209,7 @@ def parse_args():
     record_parser.add_argument(
         "--follow_pids",
         default=None,
+        nargs="+",
         type=int,
         required=False,
         help="PID of the path_publisher process to terminate on watchdog timeout",
