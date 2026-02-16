@@ -92,7 +92,6 @@ def generate_launch_description():
     # --- Context to store PIDs and recorder status ---
     launch_context = {
         "path_pid": None,
-        "amcl_pid": None,
         "recorder_started": False,
         "recorder_proc": None,
     }
@@ -113,21 +112,8 @@ def generate_launch_description():
     )
     ld.add_action(path_publisher_proc)
 
-    # --- AMCL lifecycle node ---
-    amcl_node = LifecycleNode(
-        namespace="",
-        package="nav2_amcl",
-        executable="amcl",
-        name="amcl",
-        output="screen",
-        parameters=[{"use_sim_time": use_sim_time}],
-        remappings=[("scan", "/scan"), ("base_link", base_frame)],
-    )
-    ld.add_action(amcl_node)
-
-    # --- AMCL display launch ---
     pkg_share = get_package_share_directory("amcl-ekf-slam")
-    amcl_launch = IncludeLaunchDescription(
+    amcl_ekf_slam_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_share, "launch", "display.launch.py")
         ),
@@ -143,16 +129,13 @@ def generate_launch_description():
             "slam_backend": "slam_toolbox",
         }.items(),
     )
-    ld.add_action(amcl_launch)
+    ld.add_action(amcl_ekf_slam_launch)
 
     def _start_recorder(context):
         if launch_context["recorder_started"]:
             return []
 
-        if launch_context["path_pid"] and launch_context["amcl_pid"]:
-            print(
-                f"[INFO] Starting recorder for PIDs: path={launch_context['path_pid']}, amcl={launch_context['amcl_pid']}"
-            )
+        if launch_context["path_pid"]:
             recorder_proc = ExecuteProcess(
                 cmd=[
                     controller_exec.as_posix(),
@@ -171,7 +154,6 @@ def generate_launch_description():
                     watchdog_timeout,
                     "--follow_pids",
                     str(launch_context["path_pid"]),
-                    str(launch_context["amcl_pid"]),
                     "--plot",
                 ],
                 output="screen",
@@ -196,19 +178,10 @@ def generate_launch_description():
         launch_context["path_pid"] = event.pid
         return _start_recorder(context)
 
-    def store_amcl_pid(event, context):
-        launch_context["amcl_pid"] = event.pid
-        return _start_recorder(context)
-
     # --- Event handlers for process start ---
     ld.add_action(
         RegisterEventHandler(
             OnProcessStart(target_action=path_publisher_proc, on_start=store_path_pid)
-        )
-    )
-    ld.add_action(
-        RegisterEventHandler(
-            OnProcessStart(target_action=amcl_node, on_start=store_amcl_pid)
         )
     )
 
