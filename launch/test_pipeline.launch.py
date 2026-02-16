@@ -126,7 +126,6 @@ def generate_launch_description():
             "laser_frame": "os_sensor",
             "imu_frame": "os_imu",
             "3d_map": "true",
-            "slam_backend": "slam_toolbox",
         }.items(),
     )
     ld.add_action(amcl_ekf_slam_launch)
