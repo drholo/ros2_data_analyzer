@@ -1,0 +1,1 @@
+ros2 launch launch/test_pipeline.launch.py bagfile:=/home/andrii/coding/pomiary-A0-09022026/a0_spot_full_1/level_2

@@ -209,6 +209,7 @@ def parse_args():
     record_parser.add_argument(
         "--follow_pids",
         default=None,
+        nargs="+",
         type=int,
         required=False,
         help="PID of the path_publisher process to terminate on watchdog timeout",
@@ -235,7 +236,7 @@ def get_topics(arg):
             _t, _n = topic.split(":")
         except ValueError:
             _t = topic
-            _n = topic
+            _n = topic.replace("/", "_")
         topics[_t] = _n
     return topics
 
