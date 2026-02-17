@@ -3,7 +3,6 @@ from datetime import datetime
 from pathlib import Path
 
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
-from launch_ros.actions import LifecycleNode
 
 from launch import LaunchDescription
 from launch.actions import (
@@ -15,7 +14,7 @@ from launch.actions import (
 )
 from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 
 def generate_launch_description():
@@ -34,8 +33,6 @@ def generate_launch_description():
         data_analyzer_prefix, "lib", "data_analyzer", "path_publisher"
     )
     controller_exec = Path(data_analyzer_prefix, "lib", "data_analyzer", "controller")
-
-    # --- Declare arguments ---
 
     declare_bagfile_arg = DeclareLaunchArgument(
         "bagfile", default_value="", description="Path to rosbag file"
@@ -89,14 +86,13 @@ def generate_launch_description():
     ld.add_action(declare_path_topic_arg)
     ld.add_action(declare_watchdog_ignore_arg)
     ld.add_action(declare_watchdog_timeout_arg)
-    # --- Context to store PIDs and recorder status ---
+
     launch_context = {
         "path_pid": None,
         "recorder_started": False,
         "recorder_proc": None,
     }
 
-    # --- Path publisher ---
     path_publisher_proc = ExecuteProcess(
         cmd=[
             path_publisher_exec.as_posix(),
@@ -130,6 +126,20 @@ def generate_launch_description():
     )
     ld.add_action(amcl_ekf_slam_launch)
 
+    map_saver_proc = ExecuteProcess(
+        cmd=[
+            "ros2",
+            "run",
+            "nav2_map_server",
+            "map_saver_cli",
+            "--mode",
+            "raw",
+            "-f",
+            PathJoinSubstitution([record_dst, "raw_map"]),
+        ],
+        output="screen",
+    )
+
     def _start_recorder(context):
         if launch_context["recorder_started"]:
             return []
@@ -160,24 +170,29 @@ def generate_launch_description():
             launch_context["recorder_proc"] = recorder_proc
             launch_context["recorder_started"] = True
 
-            # Ensure launch shuts down if recorder dies
             return [
                 recorder_proc,
                 RegisterEventHandler(
                     OnProcessExit(
                         target_action=recorder_proc,
-                        on_exit=[Shutdown()],
+                        on_exit=[
+                            map_saver_proc,
+                            RegisterEventHandler(
+                                OnProcessExit(
+                                    target_action=map_saver_proc,
+                                    on_exit=[Shutdown()],
+                                )
+                            ),
+                        ],
                     )
                 ),
             ]
         return []
 
-    # --- Handlers to store PIDs ---
     def store_path_pid(event, context):
         launch_context["path_pid"] = event.pid
         return _start_recorder(context)
 
-    # --- Event handlers for process start ---
     ld.add_action(
         RegisterEventHandler(
             OnProcessStart(target_action=path_publisher_proc, on_start=store_path_pid)
