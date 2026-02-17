@@ -11,6 +11,7 @@ from launch.actions import (
     IncludeLaunchDescription,
     RegisterEventHandler,
     Shutdown,
+    OpaqueFunction,
 )
 from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -126,20 +127,6 @@ def generate_launch_description():
     )
     ld.add_action(amcl_ekf_slam_launch)
 
-    map_saver_proc = ExecuteProcess(
-        cmd=[
-            "ros2",
-            "run",
-            "nav2_map_server",
-            "map_saver_cli",
-            "--mode",
-            "raw",
-            "-f",
-            PathJoinSubstitution([record_dst, "raw_map"]),
-        ],
-        output="screen",
-    )
-
     def _start_recorder(context):
         if launch_context["recorder_started"]:
             return []
@@ -170,6 +157,34 @@ def generate_launch_description():
             launch_context["recorder_proc"] = recorder_proc
             launch_context["recorder_started"] = True
 
+            map_saver_proc = ExecuteProcess(
+                cmd=[
+                    os.path.join(
+                        get_package_share_directory("data_analyzer"),
+                        "launch",
+                        "save_map.sh",
+                    ),
+                    PathJoinSubstitution([record_dst, "raw_map"]),
+                ],
+                output="screen",
+            )
+
+            octomap_saver_proc = ExecuteProcess(
+                cmd=[
+                    "ros2",
+                    "run",
+                    "octomap_server",
+                    "octomap_saver_node",
+                    "--ros-args",
+                    "-p",
+                    [
+                        "octomap_path:=",
+                        PathJoinSubstitution([record_dst, "octomap.ot"]),
+                    ],
+                ],
+                output="screen",
+            )
+
             return [
                 recorder_proc,
                 RegisterEventHandler(
@@ -177,9 +192,10 @@ def generate_launch_description():
                         target_action=recorder_proc,
                         on_exit=[
                             map_saver_proc,
+                            octomap_saver_proc,
                             RegisterEventHandler(
                                 OnProcessExit(
-                                    target_action=map_saver_proc,
+                                    target_action=octomap_saver_proc,
                                     on_exit=[Shutdown()],
                                 )
                             ),
