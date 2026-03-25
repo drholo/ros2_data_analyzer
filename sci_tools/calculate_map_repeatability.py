@@ -423,6 +423,7 @@ def main():
     ap.add_argument("--out", default="map_repeatability_out", help="Output folder")
     ap.add_argument("--map-yaml", required=True, help="Map YAML filename to use (e.g., raw_map.yaml or formatted_map.yaml)")
     ap.add_argument("--min-runs", type=int, default=2, help="Min runs per condition per algorithm")
+    ap.add_argument("--dry-run", action="store_true", help="Dry run: just report found maps and counts, no scoring or output")
 
     # alignment parameters
     ap.add_argument("--rot-min", type=float, default=-10.0, help="Min rotation (deg) when aligning A->B")
@@ -479,7 +480,9 @@ def main():
     # Report counts
     from collections import Counter
     _log(f"Loaded {len(all_runs)} maps total")
-    print("Parsed counts:", Counter((r.algo, r.mode) for r in all_runs), flush=True)
+    if args.dry_run:
+        _log(f"Parsed counts: {Counter((r.algo, r.mode) for r in all_runs)}")
+        return
 
     algos = sorted(set(r.algo for r in all_runs))
     summary_rows = []
