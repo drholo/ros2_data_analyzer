@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """
-slam_amcl_map_repeatability.py
-
 2D occupancy map repeatability for SLAM algorithms with AMCL vs no_AMCL.
 
 Input folder structure:
@@ -33,33 +31,22 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import re
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple, List, Dict
+from typing import Optional, Tuple, List
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Optional deps
-try:
-    import yaml  # PyYAML
-    YAML_OK = True
-except Exception:
-    YAML_OK = False
-
-try:
-    from scipy import ndimage
-    SCIPY_OK = True
-except Exception:
-    SCIPY_OK = False
-
-try:
-    from PIL import Image
-    PIL_OK = True
-except Exception:
-    PIL_OK = False
+import yaml
+from scipy import ndimage
+from scipy.stats import ttest_ind, mannwhitneyu
+from PIL import Image
 
 
 # -------------------- parsing record folder names --------------------
@@ -112,8 +99,6 @@ class GridMap:
 
 
 def _read_pgm_gray(pgm_path: Path) -> np.ndarray:
-    if not PIL_OK:
-        raise RuntimeError("Pillow (PIL) not available. Install: pip install pillow")
     img = Image.open(pgm_path)
     arr = np.array(img)
     if arr.ndim == 3:
@@ -122,8 +107,6 @@ def _read_pgm_gray(pgm_path: Path) -> np.ndarray:
 
 
 def _yaml_load(path: Path) -> dict:
-    if not YAML_OK:
-        raise RuntimeError("PyYAML not available. Install: pip install pyyaml")
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
@@ -246,13 +229,31 @@ def _fft_cross_correlation_shift(A: np.ndarray, B: np.ndarray) -> Tuple[int, int
 
     # FFT correlation: corr = ifft(fft(A) * conj(fft(B)))
     FA = np.fft.rfft2(A)
-    FB = np.fft.rfft2(B)
-    corr = np.fft.irfft2(FA * np.conj(FB), s=A.shape)
+    FB_conj = np.conj(np.fft.rfft2(B))
+    corr = np.fft.irfft2(FA * FB_conj, s=A.shape)
+
+    peak = np.unravel_index(np.argmax(corr), corr.shape)
+    dy, dx = peak
+    # Convert circular shift to signed shift
+    H, W = A.shape
+    if dy > H // 2:
+        dy -= H
+    if dx > W // 2:
+        dx -= W
+    return int(dy), int(dx)
+
+
+def _fft_cross_correlation_shift_with_precomputed_b(A: np.ndarray, B_fft_conj: np.ndarray) -> Tuple[int, int]:
+    """
+    Same as _fft_cross_correlation_shift, but reuses conj(fft(B))
+    for repeated comparisons against a fixed B.
+    """
+    FA = np.fft.rfft2(A)
+    corr = np.fft.irfft2(FA * B_fft_conj, s=A.shape)
 
     peak = np.unravel_index(np.argmax(corr), corr.shape)
     dy, dx = peak
 
-    # Convert circular shift to signed shift
     H, W = A.shape
     if dy > H // 2:
         dy -= H
@@ -290,8 +291,6 @@ def _rotate_mask(mask: np.ndarray, angle_deg: float) -> np.ndarray:
     Rotate around center, keep same shape, nearest-neighbor.
     Requires scipy.ndimage.
     """
-    if not SCIPY_OK:
-        raise RuntimeError("scipy is required for rotation alignment. Install: pip install scipy")
     # ndimage.rotate uses degrees, positive is CCW; reshape=False keeps size
     return ndimage.rotate(mask.astype(np.float32), angle=angle_deg, reshape=False, order=0, mode="constant", cval=0.0) > 0.5
 
@@ -305,13 +304,31 @@ def align_A_to_B_by_search(A_occ, A_known, B_occ, B_known,
     Returns aligned (occ, known) of A and params dict: angle_deg, dy, dx, score.
     """
     best = {"score": -1.0, "angle_deg": 0.0, "dy": 0, "dx": 0}
+    best_occ = A_occ
+    best_known = A_known
+    B_occ_f32 = B_occ.astype(np.float32)
+    B_occ_fft_conj = np.conj(np.fft.rfft2(B_occ_f32))
+    rot_cache: dict[float, Tuple[np.ndarray, np.ndarray]] = {}
+
+    def get_rotated(angle_deg: float) -> Tuple[np.ndarray, np.ndarray]:
+        # cache reused angles across coarse and refinement passes
+        key = round(float(angle_deg), 6)
+        cached = rot_cache.get(key)
+        if cached is not None:
+            return cached
+        Aor = _rotate_mask(A_occ, key)
+        Akr = _rotate_mask(A_known, key)
+        rot_cache[key] = (Aor, Akr)
+        return Aor, Akr
 
     def evaluate(angle_deg: float):
-        Aor = _rotate_mask(A_occ, angle_deg)
-        Akr = _rotate_mask(A_known, angle_deg)
+        Aor, Akr = get_rotated(angle_deg)
 
         # use float masks for correlation (occupied only)
-        dy, dx = _fft_cross_correlation_shift(Aor.astype(np.float32), B_occ.astype(np.float32))
+        dy, dx = _fft_cross_correlation_shift_with_precomputed_b(
+            Aor.astype(np.float32),
+            B_occ_fft_conj,
+        )
 
         Aos = _shift_mask(Aor, dy, dx)
         Aks = _shift_mask(Akr, dy, dx)
@@ -348,7 +365,8 @@ def bootstrap_ci_mean(x: np.ndarray, n_boot: int = 2000, alpha: float = 0.05, se
     x = x[np.isfinite(x)]
     if len(x) == 0:
         return (float("nan"), float("nan"))
-    boots = np.array([rng.choice(x, size=len(x), replace=True).mean() for _ in range(n_boot)])
+    idx = rng.integers(0, len(x), size=(n_boot, len(x)))
+    boots = x[idx].mean(axis=1)
     return (float(np.quantile(boots, alpha/2)), float(np.quantile(boots, 1-alpha/2)))
 
 
@@ -359,11 +377,11 @@ def cliffs_delta(a: np.ndarray, b: np.ndarray) -> float:
     b = b[np.isfinite(b)]
     if len(a) == 0 or len(b) == 0:
         return float("nan")
-    gt = 0
-    lt = 0
-    for x in a:
-        gt += np.sum(x > b)
-        lt += np.sum(x < b)
+    b_sorted = np.sort(b)
+    # counts for each x: elements in b strictly less/greater than x
+    lt = np.searchsorted(b_sorted, a, side="left").sum()
+    le = np.searchsorted(b_sorted, a, side="right").sum()
+    gt = len(a) * len(b) - le
     return float((gt - lt) / (len(a) * len(b)))
 
 
@@ -376,6 +394,27 @@ class RunMap:
     run_id: str
     folder: str
     gm: GridMap
+
+
+def _score_pair_worker(task: tuple):
+    """
+    Top-level picklable worker for multiprocessing.
+    Computes aligned IoU for one map pair (i, j).
+    task = (i, j, occ_A, known_A, occ_B, known_B, rot_min, rot_max, rot_step, refine)
+    """
+    i, j, occ_A, known_A, occ_B, known_B, rot_min, rot_max, rot_step, refine = task
+    Aocc, Aknown, Bocc, Bknown = _prepare_pair_for_alignment(occ_A, known_A, occ_B, known_B)
+    Aocc_al, Aknown_al, _ = align_A_to_B_by_search(
+        Aocc, Aknown, Bocc, Bknown,
+        rot_min=rot_min, rot_max=rot_max, rot_step=rot_step,
+        refine=refine,
+    )
+    s = iou_occ(Aocc_al, Aknown_al, Bocc, Bknown)
+    return i, j, float(s)
+
+
+def _log(msg: str):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
 def main():
@@ -395,13 +434,29 @@ def main():
     ap.add_argument("--save-aligned-example", action="store_true",
                     help="Save one aligned example per algorithm for visual sanity-check")
 
+    # parallelism
+    ap.add_argument("--workers", type=int, default=1,
+                    help="Workers for pairwise alignment (0 = all CPUs, 1 = serial, N > 1 = N processes)")
+
     args = ap.parse_args()
+    args.workers = os.cpu_count() if args.workers == 0 else args.workers
 
     root = Path(args.results)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
+    t0 = time.perf_counter()
+    _log(f"Starting map repeatability analysis")
+    _log(f"Results dir: {root.resolve()}")
+    _log(f"Output dir: {out.resolve()}")
+    _log(
+        "Alignment params: "
+        f"rot=[{args.rot_min}, {args.rot_max}] step={args.rot_step}, refine={not args.no_refine}"
+    )
+    _log(f"Workers: {args.workers} ({'serial' if args.workers == 1 else 'parallel'})")
+
     # Load all runs
+    _log("Stage 1/5: scanning and loading record maps...")
     all_runs: List[RunMap] = []
     for rec in sorted(root.glob("record_*")):
         if not rec.is_dir():
@@ -414,6 +469,7 @@ def main():
             yaml_path = find_yaml_in_record_folder(rec, args.map_yaml)
             gm = load_ros_map(yaml_path)
             all_runs.append(RunMap(algo=algo, mode=mode, run_id=run_no, folder=rec.name, gm=gm))
+            _log(f"  loaded: {rec.name} ({algo}/{mode}, run={run_no})")
         except Exception as e:
             print(f"[WARN] Skipping {rec.name}: {e}")
 
@@ -422,50 +478,72 @@ def main():
 
     # Report counts
     from collections import Counter
-    print("Parsed counts:", Counter((r.algo, r.mode) for r in all_runs))
+    _log(f"Loaded {len(all_runs)} maps total")
+    print("Parsed counts:", Counter((r.algo, r.mode) for r in all_runs), flush=True)
 
     algos = sorted(set(r.algo for r in all_runs))
     summary_rows = []
 
-    # Optional SciPy stats
-    try:
-        from scipy.stats import ttest_ind, mannwhitneyu
-        STATS_OK = True
-    except Exception:
-        STATS_OK = False
-
     def pairwise_scores(runs: List[RunMap]) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
         Return pairwise IoU (upper triangle) and full matrix (optional).
+        Supports parallel execution via args.workers.
         """
         n = len(runs)
+        n_pairs = (n * (n - 1)) // 2
+        _log(f"  pairwise scoring start: n={n}, pairs={n_pairs}")
         M = np.full((n, n), np.nan, dtype=float)
         for i in range(n):
             M[i, i] = 1.0
-        for i in range(n):
-            for j in range(i+1, n):
-                A = runs[i].gm
-                B = runs[j].gm
 
-                Aocc, Aknown, Bocc, Bknown = _prepare_pair_for_alignment(
-                    A.occ, A.known, B.occ, B.known
-                )
+        # Build flat task list
+        tasks = [
+            (
+                i, j,
+                runs[i].gm.occ, runs[i].gm.known,
+                runs[j].gm.occ, runs[j].gm.known,
+                args.rot_min, args.rot_max,
+                args.rot_step, not args.no_refine,
+            )
+            for i in range(n)
+            for j in range(i + 1, n)
+        ]
 
-                Aocc_al, Aknown_al, params = align_A_to_B_by_search(
-                    Aocc, Aknown, Bocc, Bknown,
-                    rot_min=args.rot_min, rot_max=args.rot_max, rot_step=args.rot_step,
-                    refine=(not args.no_refine)
-                )
-                s = iou_occ(Aocc_al, Aknown_al, Bocc, Bknown)
+        progress_step = max(1, n_pairs // 20)  # ~5% updates
+        done = 0
+
+        if args.workers == 1:
+            # --- serial ---
+            for task in tasks:
+                i, j, s = _score_pair_worker(task)
                 M[i, j] = s
-                M[j, i] = s  # symmetric score
+                M[j, i] = s
+                done += 1
+                if done % progress_step == 0 or done == n_pairs:
+                    _log(f"    progress: {done}/{n_pairs} pairs")
+        else:
+            # --- parallel ---
+            _log(f"  spawning ProcessPoolExecutor with {args.workers} workers")
+            with ProcessPoolExecutor(max_workers=args.workers) as pool:
+                futures = {pool.submit(_score_pair_worker, t): t for t in tasks}
+                for fut in as_completed(futures):
+                    i, j, s = fut.result()
+                    M[i, j] = s
+                    M[j, i] = s
+                    done += 1
+                    if done % progress_step == 0 or done == n_pairs:
+                        _log(f"    progress: {done}/{n_pairs} pairs")
 
         iu = np.triu_indices(n, k=1)
         vals = M[iu]
         vals = vals[np.isfinite(vals)]
+        _log("  pairwise scoring done")
         return vals, M
 
+    _log(f"Stage 2/5: evaluating algorithms ({len(algos)} total)")
     for algo in algos:
+        algo_t0 = time.perf_counter()
+        _log(f"Algorithm '{algo}': preparing AMCL vs no_AMCL groups")
         runs_algo = [r for r in all_runs if r.algo == algo]
         amcl_runs = [r for r in runs_algo if r.mode == "amcl"]
         no_runs   = [r for r in runs_algo if r.mode == "no_amcl"]
@@ -475,7 +553,9 @@ def main():
             continue
 
         # Pairwise distributions
+        _log(f"Algorithm '{algo}': scoring AMCL pairwise IoU")
         amcl_vals, amcl_M = pairwise_scores(amcl_runs)
+        _log(f"Algorithm '{algo}': scoring no_AMCL pairwise IoU")
         no_vals, no_M     = pairwise_scores(no_runs)
 
         # Save matrices (for audit)
@@ -485,6 +565,7 @@ def main():
         pd.DataFrame(no_M, index=[r.folder for r in no_runs], columns=[r.folder for r in no_runs]).to_csv(
             out / f"{algo}_pairwise_IoU_no_amcl.csv"
         )
+        _log(f"Algorithm '{algo}': saved pairwise matrices")
 
         # CI for mean IoU
         amcl_ci = bootstrap_ci_mean(amcl_vals)
@@ -494,9 +575,11 @@ def main():
         delta = cliffs_delta(amcl_vals, no_vals)  # positive means AMCL tends to be higher IoU
         welch_p = float("nan")
         mw_p = float("nan")
-        if STATS_OK and len(amcl_vals) >= 2 and len(no_vals) >= 2:
-            welch_p = float(ttest_ind(amcl_vals, no_vals, equal_var=False).pvalue)
-            mw_p = float(mannwhitneyu(amcl_vals, no_vals, alternative="two-sided").pvalue)
+        if len(amcl_vals) >= 2 and len(no_vals) >= 2:
+            welch_res = ttest_ind(amcl_vals, no_vals, equal_var=False)
+            mw_res = mannwhitneyu(amcl_vals, no_vals, alternative="two-sided")
+            welch_p = float(np.asarray(getattr(welch_res, "pvalue", welch_res[1]), dtype=float))
+            mw_p = float(np.asarray(getattr(mw_res, "pvalue", mw_res[1]), dtype=float))
 
         summary_rows.append({
             "algorithm": algo,
@@ -523,6 +606,7 @@ def main():
         plt.tight_layout()
         plt.savefig(out / f"{algo}_box_pairwise_IoU.png", dpi=300)
         plt.close()
+        _log(f"Algorithm '{algo}': saved boxplot")
 
         # Optional: save one aligned example visualization for sanity
         if args.save_aligned_example and len(amcl_runs) >= 2:
@@ -537,12 +621,15 @@ def main():
             ov = np.zeros((*B.occ.shape, 3), dtype=np.uint8)
             ov[..., 0] = (Aocc_al.astype(np.uint8) * 255)
             ov[..., 2] = (B.occ.astype(np.uint8) * 255)
-            if PIL_OK:
-                Image.fromarray(ov).save(out / f"{algo}_aligned_example_amcl.png")
+            Image.fromarray(ov).save(out / f"{algo}_aligned_example_amcl.png")
+            _log(f"Algorithm '{algo}': saved aligned example")
+
+        _log(f"Algorithm '{algo}' done in {time.perf_counter() - algo_t0:.1f}s")
 
     if not summary_rows:
         raise SystemExit("No algorithms produced results (check --min-runs, --map-yaml).")
 
+    _log("Stage 3/5: writing summary CSV")
     df_sum = pd.DataFrame(summary_rows).sort_values("pairwise_IoU_amcl_mean", ascending=False)
     df_sum.to_csv(out / "summary_by_algorithm.csv", index=False)
 
@@ -559,13 +646,26 @@ def main():
 
     am_ci = np.array([parse_ci(s) for s in df_sum["pairwise_IoU_amcl_ci95"]], float)
     nm_ci = np.array([parse_ci(s) for s in df_sum["pairwise_IoU_no_amcl_ci95"]], float)
-    am_err = np.vstack([am - am_ci[:,0], am_ci[:,1] - am])
-    nm_err = np.vstack([nm - nm_ci[:,0], nm_ci[:,1] - nm])
+    # Guard against tiny numeric inconsistencies or CI strings where mean can
+    # lie slightly outside reported interval; matplotlib requires non-negative yerr.
+    am_err = np.maximum(np.vstack([am - am_ci[:, 0], am_ci[:, 1] - am]), 0.0)
+    nm_err = np.maximum(np.vstack([nm - nm_ci[:, 0], nm_ci[:, 1] - nm]), 0.0)
 
+    _log("Stage 4/5: generating final mean+CI plots")
     plt.figure(figsize=(3.5, 2.2), dpi=300)
     off = 0.12
-    plt.errorbar(x - off, am, yerr=am_err, fmt='o', capsize=3, label="AMCL")
-    plt.errorbar(x + off, nm, yerr=nm_err, fmt='o', capsize=3, label="no AMCL")
+    am_valid = np.isfinite(am) & np.isfinite(am_err[0]) & np.isfinite(am_err[1])
+    nm_valid = np.isfinite(nm) & np.isfinite(nm_err[0]) & np.isfinite(nm_err[1])
+
+    if np.any(am_valid):
+        plt.errorbar(x[am_valid] - off, am[am_valid], yerr=am_err[:, am_valid], fmt='o', capsize=3, label="AMCL")
+    else:
+        _log("No finite AMCL points for mean+CI plot")
+
+    if np.any(nm_valid):
+        plt.errorbar(x[nm_valid] + off, nm[nm_valid], yerr=nm_err[:, nm_valid], fmt='o', capsize=3, label="no AMCL")
+    else:
+        _log("No finite no_AMCL points for mean+CI plot")
     plt.xticks(x, algos2)
     plt.ylabel("Pairwise IoU (occ)")
     plt.xlabel("SLAM back-end")
@@ -575,9 +675,11 @@ def main():
     plt.savefig(out / "map_repeatability_mean_ci.pdf")
     plt.savefig(out / "map_repeatability_mean_ci.png", dpi=300)
     plt.close()
+    _log("Stage 5/5: done")
 
-    print("\nSaved outputs to:", out.resolve())
-    print(df_sum.to_string(index=False))
+    print("\nSaved outputs to:", out.resolve(), flush=True)
+    print(df_sum.to_string(index=False), flush=True)
+    _log(f"Total runtime: {time.perf_counter() - t0:.1f}s")
 
 
 if __name__ == "__main__":

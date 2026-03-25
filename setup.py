@@ -29,6 +29,7 @@ setup(
         "console_scripts": [
             "controller = data_analyzer.controller:main",
             "path_publisher = data_analyzer.path_publisher:main",
+            "analyze_maps = sci_tools.calculate_map_repeatability:main"
         ],
     },
 )
