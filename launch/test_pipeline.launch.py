@@ -28,6 +28,7 @@ def generate_launch_description():
     imu_topic = LaunchConfiguration("imu_topic", default="ouster/imu")
     path_topic = LaunchConfiguration("path_topic", default="/tf_path")
     watchdog_timeout = LaunchConfiguration("watchdog_timeout", default="5.0")
+    skip_rviz = LaunchConfiguration("skip_rviz", default="false")
 
     data_analyzer_prefix = get_package_prefix("data_analyzer")
     path_publisher_exec = Path(
@@ -76,6 +77,11 @@ def generate_launch_description():
         default_value="5.0",
         description="Watchdog timeout in seconds",
     )
+    declare_skip_rviz_arg = DeclareLaunchArgument(
+        "skip_rviz",
+        default_value="false",
+        description="Skip recorder plot/RViz output",
+    )
 
     ld = LaunchDescription()
     ld.add_action(declare_bagfile_arg)
@@ -87,6 +93,7 @@ def generate_launch_description():
     ld.add_action(declare_path_topic_arg)
     ld.add_action(declare_watchdog_ignore_arg)
     ld.add_action(declare_watchdog_timeout_arg)
+    ld.add_action(declare_skip_rviz_arg)
 
     launch_context = {
         "path_pid": None,
@@ -132,26 +139,28 @@ def generate_launch_description():
             return []
 
         if launch_context["path_pid"]:
+            _cmd = [
+                controller_exec.as_posix(),
+                "record",
+                "tf_path:TF",
+                "odometry/filtered:EKF",
+                "amcl_pose:AMCL",
+                "--imu",
+                imu_topic,
+                "--record_to",
+                record_dst,
+                "--watchdog_ignore",
+                path_topic,
+                odometry_topic,
+                "--watchdog_timeout",
+                watchdog_timeout,
+                "--follow_pids",
+                str(launch_context["path_pid"]),
+            ]
+            if skip_rviz.perform(context).lower() == "false":
+                _cmd.append("--plot")
             recorder_proc = ExecuteProcess(
-                cmd=[
-                    controller_exec.as_posix(),
-                    "record",
-                    "tf_path:TF",
-                    "odometry/filtered:EKF",
-                    "amcl_pose:AMCL",
-                    "--imu",
-                    imu_topic,
-                    "--record_to",
-                    record_dst,
-                    "--watchdog_ignore",
-                    path_topic,
-                    odometry_topic,
-                    "--watchdog_timeout",
-                    watchdog_timeout,
-                    "--follow_pids",
-                    str(launch_context["path_pid"]),
-                    "--plot",
-                ],
+                cmd=_cmd,
                 output="screen",
             )
             launch_context["recorder_proc"] = recorder_proc
