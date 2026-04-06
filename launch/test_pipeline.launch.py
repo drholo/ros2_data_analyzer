@@ -201,11 +201,18 @@ def generate_launch_description():
                         target_action=recorder_proc,
                         on_exit=[
                             map_saver_proc,
-                            octomap_saver_proc,
                             RegisterEventHandler(
                                 OnProcessExit(
-                                    target_action=octomap_saver_proc,
-                                    on_exit=[Shutdown()],
+                                    target_action=map_saver_proc,
+                                    on_exit=[
+                                        octomap_saver_proc,
+                                        RegisterEventHandler(
+                                            OnProcessExit(
+                                                target_action=octomap_saver_proc,
+                                                on_exit=[Shutdown()],
+                                            )
+                                        ),
+                                    ],
                                 )
                             ),
                         ],
