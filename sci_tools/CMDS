@@ -1,0 +1,167 @@
+9888  python evaluate_slam_paper_methods.py --results ~/games/ROS/bags/A0_spot/results/results_* --filename TF.json --out output/spot
+ 9889  git commit -am "update results"
+ 9890  docker start 0bb394899228
+ 9891  cd ~/games/ROS/bags/
+ 9892  cd A0_spot
+ 9893  rm -rf results_2B_test
+ 9894  cd run_2
+ 9895  cat levels.txt
+ 9896  python
+ 9897  vim out_levels.yaml
+ 9898  df -h
+ 9899  cd games/ROS
+ 9900  cd ..
+ 9901  ssh akudr@galaxy.agh.edu.pl
+ 9902  gdu
+ 9903  sudo btrfs balance start -dusage=70 /home/andrii/games
+ 9904  sudo btrfs balance start -musage=70 /home/andrii/games
+ 9905  cd ROS/bags
+ 9906  A0_spot
+ 9907  find . -name "*.bag"
+ 9908  find ../ -name "*.bag"
+ 9909  rsync -avhP restic@apex.local:/srv/dev-disk-by-uuid-6889ce19-aae6-4456-8535-8a68b6ecc9cb/restore/ssd_sandisk/andrii/pomiary-A0-09022026/2026-02-09-18-04-32.bag .
+ 9910  rosbags-convert --src 2026-02-09-18-04-32.bag --dst a0_spot_full_2_new --dst-storage mcap
+ 9911  sudo btrfs filesystem usage /home/andrii/games\n
+ 9912  cd games/ROS/bags
+ 9913  ca A0_spot/run_2
+ 9914  cd A0_spot/run_2
+ 9915  cat out_levels.yaml
+ 9916  ll ../2026-02-09-18-04-32.bag
+ 9917  ls ../2026-02-09-18-04-32.bag
+ 9918  ls -l ../2026-02-09-18-04-32.bag
+ 9919  sha512sum ../2026-02-09-18-04-32.bag
+ 9920  ssh -X restic@apex.local
+ 9921  echo 'export PATH=$HOME/.npm-global/bin:$PATH' >> ~/.zshrc
+ 9922  source ~/.zshrc
+ 9923  npm config set prefix "$HOME/.npm-global"
+ 9924  npm config get prefix
+ 9925  npm i -g @openai/codex
+ 9926  cd coding/robotics/sci/ros2_data_analyzer/sci_tools/
+ 9927  codex
+ 9928  ln -s ~/games/ROS/bags/panther/
+ 9929  ll
+ 9930  ls ..
+ 9931  python plot_tf_trajectories.py -h
+ 9932  sudo pacman -S evince
+ 9933  view 1A.png
+ 9934  evince 1A.png
+ 9935  cd /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools
+ 9936  source ../.venv/bin/activate
+ 9937  realpath ../data_analyzer/plotter.py
+ 9938  python plot_tf_trajectories.py --filename TF.json --panther-csv output/panther/raw_path_length_by_env_and_measurement.csv panther/results_1A --out 1A.png
+ 9939  python plot_tf_trajectories.py --filename TF.json --panther-csv output/panther/raw_path_length_by_env_and_measurement.csv panther/results_1A --out-dir 1A
+ 9940  ll panther/results_1A/record_cartographer_amcl_0/TF.json
+ 9941  python plot_tf_trajectories.py --filename TF.json --panther-csv output/panther/raw_path_length_by_env_and_measurement.csv panther --out-dir output-test
+ 9942  cp plot_tf_trajectories.py plot_tf_trajectories.py.old
+ 9943  rm output-test/*
+ 9944  git add plot_tf_trajectories.py
+ 9945  git commit -am "add dirty plot tf traj "
+ 9946  python plot_tf_trajectories.py --filename TF.json --panther-csv output/panther/raw_path_length_by_env_and_measurement.csv panther/results_1A --out-dir output-test
+ 9947  git commit -am "refactor plot tf traj "
+ 9948  python calculate_map_repeatability.py -h
+ 9949  docker exec -it 0bb394899228 bash
+ 9950  python calculate_map_repeatability.py
+ 9951  python calculate_map_repeatability.py --results
+ 9952  python calculate_map_repeatability.py --results panther/ --out output-map-test --workers=10
+ 9953  python calculate_map_repeatability.py --results panther/ --out output-map-test --workers=10 --map-yaml formatted_map.yaml
+ 9954  ls panther/results_1A/record_cartographer_amcl_0/
+ 9955  python calculate_map_repeatability.py --results panther/results_1A --out output-map-test --workers=10 --map-yaml formatted_map.yaml
+ 9956  cd /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools && /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python plot_map_compar.py output-map-test --out-dir output-map-test/plots 2>&1
+ 9957  ls /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-test/plots/
+ 9958  git add plot_map_compar.py
+ 9959  git commit -am "add dirty plot_map_compar.py"
+ 9960  python calculate_map_repeatability.py --results panther/results_1B --out output-map-test-1B --workers=0 --map-yaml formatted_map.yaml
+ 9961  python calculate_map_repeatability.py --results panther/results_1B --out output-map-test-1C --workers=0 --map-yaml formatted_map.yaml
+ 9962  python calculate_map_repeatability.py --results panther/results_1C --out output-map-test-1C --workers=0 --map-yaml formatted_map.yaml
+ 9963  python calculate_map_repeatability.py --results panther/results_2C --out output-map-test-2C --workers=0 --map-yaml formatted_map.yaml
+ 9964  python calculate_map_repeatability.py --results panther/results_2B --out output-map-test-2B --workers=0 --map-yaml formatted_map.yaml
+ 9965  python calculate_map_repeatability.py --results panther/results_2A --out output-map-test-2A --workers=0 --map-yaml formatted_map.yaml
+ 9966  cd coding/robotics/sci
+ 9967  cd ros2_data_analyzer/sci_tools
+ 9968  ls output-map-test-1B
+ 9969  mv output-map-test output-map-test-1A
+ 9970  ls
+ 9971  ls output-map-test-*
+ 9972  ls output/
+ 9973  ls output/panther
+ 9974  ls /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output/panther/ | head -20 && echo "---" && head -5 /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output/panther/*.csv 2>/dev/null | head -60
+ 9975  ls /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-test-*/summary_by_algorithm.csv | head -10 && echo "---" && cat /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-test-1A/summary_by_algorithm.csv
+ 9976  head -5 /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-test-1A/cartographer_pairwise_IoU_amcl.csv && echo "---" && head -5 /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-test-1A/cartographer_pairwise_IoU_no_amcl.csv
+ 9977  ls /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-test-* -d && echo "---naming pattern" && ls /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-test-1A/
+ 9978  cat /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-test-2A/summary_by_algorithm.csv && echo "---" && cat /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-test-2B/summary_by_algorithm.csv
+ 9979  cd /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools && python summarize_map_results.py
+ 9980  python3 summarize_map_results.py 2>&1 || which python3 && python3 -c "import pandas" 2>&1
+ 9981  cat /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/requirements.txt && echo "---" && ls /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/b_tools 2>/dev/null | head -5
+ 9982  pyenv versions 2>/dev/null | head && ls ~/.pyenv/versions/ 2>/dev/null && cat ~/coding/robotics/sci/ros2_data_analyzer/sci_tools/../.python-version 2>/dev/null || echo "no .python-version"
+ 9983  ../.venv/bin/python summarize_map_results.py
+ 9984  git add summarize_map_results.py
+ 9985  git commit -am "add dirty summarize_map_results.py"
+ 9986  head -5 /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-combined/pairwise_IoU_amcl.csv && echo "---" && head -5 /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-combined/pairwise_IoU_no_amcl.csv && echo "---" && head -10 /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-combined/per_pair_IoU.csv && echo "---" && cat /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-combined/summary_by_algorithm.csv
+ 9987  cd /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools && /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python plot_map_compar.py output-map-test --out-dir output-map-test/plots 2>&1 | tail -15
+ 9988  ls /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/
+ 9989  ls /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-test-1A/ | head -10 && echo "---" && ls /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-combined/
+ 9990  /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python plot_map_compar.py output-map-test-1A --out-dir output-map-test-1A/plots 2>&1 | tail -20
+ 9991  /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python plot_map_compar.py output-map-combined --out-dir output-map-combined/plots 2>&1
+ 9992  find /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-map-combined/plots -name "*.png" | sort
+ 9993  git diff
+ 9994  git status
+ 9995  git commit -am "improve plot_map_compar.py"
+ 9996  git push
+ 9997  cd /home/andrii/Documents/priv/agh/konf/mmar26/tekst/mdpi/remote_sensors && /usr/bin/time -p latexmk -pdf -interaction=nonstopmode -halt-on-error template.tex
+ 9998  time latexmk -pdf -interaction=nonstopmode -halt-on-error template.tex
+ 9999  wc -l template.aux && tail -n 30 template.aux | cat
+10000  latexmk -C template.tex && time latexmk -pdf -interaction=nonstopmode -halt-on-error template.tex
+10001  ls
+10002  cd /home/andrii/Documents/priv/agh/konf/mmar26/tekst/mdpi/remote_sensors && rm -f template.aux template.log template.out template.toc template.lof template.lot template.bbl template.blg template.fdb_latexmk template.fls template.pdf template.synctex.gz && /usr/bin/time -f '%E real' latexmk -pdf -interaction=nonstopmode -halt-on-error template.tex
+10003  time latexmk -pdf -interaction=nonstopmode -halt-on-error template.tex
+10004  latexmk -pdf -interaction=nonstopmode -halt-on-error template.tex
+10005  latexmk -g -pdf -interaction=nonstopmode -halt-on-error template.tex
+10006  git diff
+10007  git status
+10008  git add mdpi/remote_sensors/template.tex mdpi/remote_sensors/figures/
+10009  git status
+10010  ls
+10011  git status
+10012  git commit -am "add figures for map evaluation"
+10013  git push
+10014  python - <<'PY'\nimport pandas as pd\nfrom pathlib import Path\np=Path('/home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output/panther')\nfor f in sorted(p.glob('*.csv')):\n    df=pd.read_csv(f)\n    print('\n===',f.name,'===')\n    print('cols:',list(df.columns))\n    print(df.head(2).to_string(index=False))\nPY
+10015  cd /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools && /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python plot_tf_trajectories.py . --panther-only --panther-dir output/panther --out-dir output/panther/trajectory_plots 2>&1
+10016  /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python plot_tf_trajectories.py output-test/record_cartographer_amcl_0 --out-dir output-test/record_cartographer_amcl_0/trajectory_plots_quick --no-panther-summary 2>&1 | tail -20
+10017  ls /home/andrii/coding/robotics/sci/ros2_data_analyzer/sci_tools/output-test | head -20
+10018  /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python plot_tf_trajectories.py /home/andrii/coding/robotics/sci/ros2_data_analyzer/output-test --out-dir /home/andrii/coding/robotics/sci/ros2_data_analyzer/output-test/trajectory_plots_quick --no-panther-summary 2>&1 | tail -25
+10019  /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python -m py_compile plot_tf_trajectories.py
+10020  /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python plot_tf_trajectories.py . --panther-only --panther-dir output/panther --out-dir output/panther/trajectory_plots_aligned 2>&1
+10021  /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python -m py_compile plot_tf_trajectories.py
+10022  /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python plot_tf_trajectories.py . --panther-only --panther-dir output/panther --out-dir output/panther/trajectory_plots_refactored 2>&1
+10023  /home/andrii/coding/robotics/sci/ros2_data_analyzer/.venv/bin/python -m py_compile plot_tf_trajectories.py
+10024  git diff
+10025  git status
+10026  git commit -am "dirty plots tf"
+10027  git diff
+10028  git status
+10029  git add  mdpi/remote_sensors/figures
+10030  git commit -am "add more plots for trajectories"
+10031  git push
+10032  git status
+10033  git push
+10034  docker exec -it 0bb394899228 bash
+10035  docker start -it 0bb394899228 bash
+10036  docker start  0bb394899228
+10037  docker exec -it 0bb394899228 bash
+10038  cd coding/robotics/sci/ros2_data_analyzer
+10039  source .venv/bin/activate
+10040  history
+10041  cd sci_tools
+10042  ls
+10043  ll
+10044  ln -s ~/games/ROS/bags/A0_spot/results spot
+10045  ls panther
+10046  ls spot
+10047  mkdir output_spot
+10048  python calculate_map_repeatability.py --results spot/results_1A --out output_spot/output-map-1A --workers=0 --map-yaml formatted_map.yaml && python calculate_map_repeatability.py --results spot/results_1B --out output_spot/output-map-1B --workers=0 --map-yaml formatted_map.yaml&& python calculate_map_repeatability.py --results spot/results_2A --out output_spot/output-map-2A --workers=0 --map-yaml formatted_map.yaml&& python calculate_map_repeatability.py --results spot/results_2B --out output_spot/output-map-2B --workers=0 --map-yaml formatted_map.yaml&& python calculate_map_repeatability.py --results spot/results_1C --out output_spot/output-map-1C --workers=0 --map-yaml formatted_map.yaml&& python calculate_map_repeatability.py --results spot/results_2C --out output_spot/output-map-2C --workers=0 --map-yaml formatted_map.yaml
+10049  ls
+10050  history
+10051  python summarize_map_results.py -h
+10052  python summarize_map_results.py --search-dir output_spot/ --pattern output-map-*
+10053  python summarize_map_results.py --search-dir output_spot/ --pattern 'output-map-*'
+10054  python plot_map_compar.py output_spot/output-map-combined --out-dir output_spot/output-map-combined/plots
