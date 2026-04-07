@@ -19,7 +19,6 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from cycler import cycler
 
 LINE_WIDTH = 0.8
 
@@ -141,7 +140,7 @@ def parse_results_folder_name(name: str) -> Optional[tuple[str, str]]:
 def parse_record_folder(name: str) -> Optional[tuple[str, str, str]]:
     if not name.startswith("record_"):
         return None
-    parts = name[len("record_"):].split("_")
+    parts = name.removeprefix("record_").split("_")
     if len(parts) < 3 or not parts[-1].isdigit():
         return None
     if len(parts) >= 4 and parts[-3] == "no" and parts[-2] == "amcl":
@@ -214,16 +213,13 @@ def panther_mean_summary(csv_path: Path, input_dir: Path) -> Optional[dict[str, 
     }
 
 
-def build_title(input_dir: Path, runs: list[TrajectoryRun], summary: Optional[dict[str, float | str]]) -> str:
+def build_title(input_dir: Path) -> str:
     return f"2D Trajectory Comparison: {input_dir.name}"
 
 
 def compute_plot_limits(aligned: list[np.ndarray], mean_xy: np.ndarray, padding: float = 0.2) -> tuple[float, float]:
-    all_x = [traj[:, 0] for traj in aligned] + [mean_xy[:, 0]]
-    all_y = [traj[:, 1] for traj in aligned] + [mean_xy[:, 1]]
-    min_val = min(float(np.min(arr)) for arr in all_x + all_y)
-    max_val = max(float(np.max(arr)) for arr in all_x + all_y)
-    return min_val - padding, max_val + padding
+    all_points = np.concatenate(aligned + [mean_xy], axis=0)
+    return float(all_points.min()) - padding, float(all_points.max()) + padding
 
 
 def sanitize_filename(value: str) -> str:
@@ -245,8 +241,6 @@ def style_for_index(index: int):
 
 
 def style_axes(ax: plt.Axes, title: str, limit_low: float, limit_high: float) -> None:
-    colors = ["blue", "red", "orange", "purple", "green", "brown"]
-    ax.set_prop_cycle(cycler("color", colors))
     ax.set_aspect("equal", "box")
     ax.grid(True, linestyle="-.", alpha=0.3)
     ax.set_xlabel("x [m]", fontsize=12)
@@ -254,6 +248,20 @@ def style_axes(ax: plt.Axes, title: str, limit_low: float, limit_high: float) ->
     ax.set_title(title, fontsize=14, fontweight="bold")
     ax.set_xlim(limit_low, limit_high)
     ax.set_ylim(limit_low, limit_high)
+
+
+def _create_figure(title: str, limit_low: float, limit_high: float) -> tuple[plt.Figure, plt.Axes]:
+    fig, ax = plt.subplots(figsize=(10, 8))
+    fig.patch.set_facecolor("white")
+    style_axes(ax, title, limit_low, limit_high)
+    return fig, ax
+
+
+def _save_figure(fig: plt.Figure, path: Path) -> None:
+    fig.tight_layout()
+    fig.savefig(path, dpi=200)
+    plt.close(fig)
+    print(f"Saved plot to {path}")
 
 
 def plot_algorithm_group(
@@ -268,25 +276,19 @@ def plot_algorithm_group(
     mean_xy = mean_trajectory([run.resampled for run in runs])
     limit_low, limit_high = compute_plot_limits(aligned, mean_xy)
 
-    fig, ax = plt.subplots(figsize=(10, 8))
-    fig.patch.set_facecolor("white")
-    style_axes(
-        ax,
-        f"{build_title(input_dir, runs, summary)} {algorithm} {mode}",
+    fig, ax = _create_figure(
+        f"{build_title(input_dir)} {algorithm} {mode}",
         limit_low,
         limit_high,
     )
 
-    for run, aligned_xy in zip(runs, aligned):
+    for aligned_xy in aligned:
         ax.plot(aligned_xy[:, 0], aligned_xy[:, 1], color="gray", alpha=0.3, linewidth=LINE_WIDTH)
 
     ax.plot(mean_xy[:, 0], mean_xy[:, 1], color="black", linestyle="--", linewidth=LINE_WIDTH)
-    fig.tight_layout()
 
     out_path = output_dir / f"tf_trajectories_{sanitize_filename(algorithm)}_{sanitize_filename(mode)}.png"
-    fig.savefig(out_path, dpi=200)
-    plt.close(fig)
-    print(f"Saved plot to {out_path}")
+    _save_figure(fig, out_path)
     return mean_xy
 
 
@@ -297,38 +299,36 @@ def plot_mode_summary(
     runs: list[TrajectoryRun],
     summary: Optional[dict[str, float | str]],
 ) -> None:
-    grouped: dict[str, list[TrajectoryRun]] = {}
+    by_algorithm: dict[str, list[TrajectoryRun]] = {}
     for run in runs:
-        grouped.setdefault(run.algorithm, []).append(run)
+        by_algorithm.setdefault(run.algorithm, []).append(run)
 
-    algorithm_aligned: dict[str, list[np.ndarray]] = {}
+    algo_aligned: dict[str, list[np.ndarray]] = {}
     algorithm_means: dict[str, np.ndarray] = {}
     all_curves: list[np.ndarray] = []
 
-    for algorithm, algo_runs in sorted(grouped.items()):
-        aligned = aligned_runs(algo_runs)
+    for algorithm, algo_runs in sorted(by_algorithm.items()):
+        curves = aligned_runs(algo_runs)
         mean_xy = mean_trajectory([run.resampled for run in algo_runs])
-        algorithm_aligned[algorithm] = aligned
+        algo_aligned[algorithm] = curves
         algorithm_means[algorithm] = mean_xy
-        all_curves.extend(aligned)
+        all_curves.extend(curves)
 
     if not algorithm_means:
         return
 
-    mean_of_means = mean_trajectory(list(algorithm_means.values()))
-    limit_low, limit_high = compute_plot_limits(all_curves + list(algorithm_means.values()), mean_of_means)
-    fig, ax = plt.subplots(figsize=(10, 8))
-    fig.patch.set_facecolor("white")
-    style_axes(
-        ax,
-        f"{build_title(input_dir, runs, summary)} all algorithms {mode}",
+    mean_values = list(algorithm_means.values())
+    mean_of_means = mean_trajectory(mean_values)
+    limit_low, limit_high = compute_plot_limits(all_curves + mean_values, mean_of_means)
+    fig, ax = _create_figure(
+        f"{build_title(input_dir)} all algorithms {mode}",
         limit_low,
         limit_high,
     )
 
-    for idx, (algorithm, aligned_runs_for_algo) in enumerate(sorted(algorithm_aligned.items())):
+    for idx, (algorithm, curves) in enumerate(sorted(algo_aligned.items())):
         color = algorithm_color(algorithm)
-        for aligned_xy in aligned_runs_for_algo:
+        for aligned_xy in curves:
             ax.plot(aligned_xy[:, 0], aligned_xy[:, 1], color=color, alpha=0.3, linewidth=LINE_WIDTH)
         mean_xy = algorithm_means[algorithm]
         ax.plot(
@@ -341,12 +341,8 @@ def plot_mode_summary(
         )
 
     ax.legend(loc="best", fontsize=11)
-    fig.tight_layout()
-
     out_path = output_dir / f"tf_trajectories_all_algorithms_{sanitize_filename(mode)}.png"
-    fig.savefig(out_path, dpi=200)
-    plt.close(fig)
-    print(f"Saved plot to {out_path}")
+    _save_figure(fig, out_path)
 
 
 def plot_mean_summary(
@@ -359,11 +355,8 @@ def plot_mean_summary(
     ordered_means = [algorithm_means[name] for name in ordered_names]
     reference_mean = ordered_means[0]
     limit_low, limit_high = compute_plot_limits(ordered_means, reference_mean)
-    fig, ax = plt.subplots(figsize=(10, 8))
-    fig.patch.set_facecolor("white")
-    style_axes(
-        ax,
-        f"{build_title(input_dir, [], summary)} algorithm means",
+    fig, ax = _create_figure(
+        f"{build_title(input_dir)} algorithm means",
         limit_low,
         limit_high,
     )
@@ -375,16 +368,10 @@ def plot_mean_summary(
             color="black",
             linestyle=style_for_index(idx),
             label=f"{name} mean",
-            alpha=1.0,
             linewidth=LINE_WIDTH,
         )
     ax.legend(loc="best", fontsize=11)
-    fig.tight_layout()
-
-    out_path = output_dir / "tf_trajectories_algorithm_means.png"
-    fig.savefig(out_path, dpi=200)
-    plt.close(fig)
-    print(f"Saved plot to {out_path}")
+    _save_figure(fig, output_dir / "tf_trajectories_algorithm_means.png")
 
 
 def main() -> None:
@@ -413,25 +400,23 @@ def main() -> None:
     output_dir = Path(args.out_dir).resolve() if args.out_dir else input_dir / "trajectory_plots"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    grouped: dict[tuple[str, str], list[TrajectoryRun]] = {}
+    by_algo_mode: dict[tuple[str, str], list[TrajectoryRun]] = {}
+    by_mode: dict[str, list[TrajectoryRun]] = {}
     for run in runs:
-        grouped.setdefault((run.algorithm, run.mode), []).append(run)
+        by_algo_mode.setdefault((run.algorithm, run.mode), []).append(run)
+        by_mode.setdefault(run.mode, []).append(run)
 
     algorithm_means: dict[str, np.ndarray] = {}
-    for algorithm, mode in sorted(grouped):
+    for algorithm, mode in sorted(by_algo_mode):
         group_mean = plot_algorithm_group(
             input_dir,
             output_dir,
             algorithm,
             mode,
-            grouped[(algorithm, mode)],
+            by_algo_mode[(algorithm, mode)],
             summary,
         )
         algorithm_means[f"{algorithm}_{mode}"] = group_mean
-
-    by_mode: dict[str, list[TrajectoryRun]] = {}
-    for run in runs:
-        by_mode.setdefault(run.mode, []).append(run)
 
     for mode in sorted(by_mode):
         plot_mode_summary(input_dir, output_dir, mode, by_mode[mode], summary)
