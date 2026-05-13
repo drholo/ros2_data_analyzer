@@ -487,10 +487,10 @@ def plot_faceted_mean_ci(
         figsize=(max(3.0, len(algos) * 3.0), max(2.4, len(slices) * 2.2)),
         dpi=220,
         squeeze=False,
-        sharey=True,
     )
 
     for r, (env, measurement_no) in enumerate(slices):
+        row_vals: list[float] = []
         for c, algo in enumerate(algos):
             ax = axes[r][c]
             row = summary_df[
@@ -504,12 +504,21 @@ def plot_faceted_mean_ci(
                 item = row.iloc[0]
                 y_amcl = float(item[amcl_col])
                 y_no = float(item[no_amcl_col])
-                ax.scatter([0], [y_amcl], color=MODE_COLORS["amcl"], s=34)
-                ax.scatter([1], [y_no], color=MODE_COLORS["no_amcl"], s=34)
-                ax.plot([0, 1], [y_amcl, y_no], color="gray", alpha=0.35, linewidth=1.0)
+                has_amcl = np.isfinite(y_amcl)
+                has_no = np.isfinite(y_no)
+                if not has_amcl and not has_no:
+                    ax.text(0.5, 0.5, "no data", transform=ax.transAxes, ha="center", va="center", color="gray")
+                else:
+                    if has_amcl:
+                        ax.scatter([0], [y_amcl], color=MODE_COLORS["amcl"], s=34)
+                        row_vals.append(y_amcl)
+                    if has_no:
+                        ax.scatter([1], [y_no], color=MODE_COLORS["no_amcl"], s=34)
+                        row_vals.append(y_no)
+                    if has_amcl and has_no:
+                        ax.plot([0, 1], [y_amcl, y_no], color="gray", alpha=0.35, linewidth=1.0)
 
             ax.set_xlim(-0.6, 1.6)
-            ax.set_ylim(bottom=0.0)
             ax.set_xticks([0, 1])
             ax.set_xticklabels(["AMCL", "no AMCL"], fontsize=8)
             ax.grid(True, axis="y", linestyle="-.", alpha=0.3)
@@ -517,6 +526,16 @@ def plot_faceted_mean_ci(
                 ax.set_title(algo, fontsize=9, fontweight="bold")
             if c == 0:
                 ax.set_ylabel(f"{env}-{measurement_no}")
+
+        # set consistent y-limits for the whole row based on actual data
+        if row_vals:
+            y_max = max(row_vals)
+            y_pad = max(y_max * 0.1, 0.05)
+            for ax in axes[r]:
+                ax.set_ylim(0.0, y_max + y_pad)
+        else:
+            for ax in axes[r]:
+                ax.set_ylim(bottom=0.0)
 
     fig.suptitle(title, fontsize=12, fontweight="bold")
     fig.tight_layout()
