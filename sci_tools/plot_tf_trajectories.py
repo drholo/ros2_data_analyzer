@@ -207,7 +207,7 @@ def aligned_runs(runs: list[TrajectoryRun]) -> list[np.ndarray]:
     return aligned
 
 
-def panther_mean_summary(csv_path: Path, input_dir: Path) -> Optional[dict[str, float | str]]:
+def platform_mean_summary(csv_path: Path, input_dir: Path) -> Optional[dict[str, float | str]]:
     parsed = parse_results_folder_name(input_dir.name)
     if not parsed or not csv_path.exists():
         return None
@@ -791,9 +791,9 @@ def _algo_mode_metric_values(
     return data
 
 
-def generate_panther_summary_plots(panther_dir: Path, out_dir: Path) -> None:
-    summary_path = panther_dir / "summary_by_slice.csv"
-    per_run_path = panther_dir / "per_run_metrics.csv"
+def generate_platform_summary_plots(platform_dir: Path, out_dir: Path) -> None:
+    summary_path = platform_dir / "summary_by_slice.csv"
+    per_run_path = platform_dir / "per_run_metrics.csv"
     if not summary_path.exists():
         print(f"[WARN] {summary_path} not found, skipping trajectory summary plots")
         return
@@ -822,7 +822,7 @@ def generate_panther_summary_plots(panther_dir: Path, out_dir: Path) -> None:
         plot_delta_heatmap(
             summary_df,
             metric_col=spec["delta_col"],
-            title=f"{spec['title_base']} Cliff's delta: AMCL vs no-AMCL (+ = AMCL higher)",
+            title=f"{spec['title_base']} Cliff's delta: AMCL vs no-AMCL",
             out_path=out_dir / f"combined_cliffs_delta_heatmap_{spec['slug']}.png",
         )
         plot_faceted_mean_ci(
@@ -896,24 +896,24 @@ def main() -> None:
     ap.add_argument("--resample", type=int, default=1000, help="Samples per trajectory for averaging")
     ap.add_argument("--min-poses", type=int, default=5, help="Minimum valid poses required to keep a run")
     ap.add_argument(
-        "--panther-csv",
-        default="output/panther/raw_path_length_by_env_and_measurement.csv",
-        help="CSV file with Panther mean path length by env and measurement",
+        "--platform-csv",
+        default="output/raw_path_length_by_env_and_measurement.csv",
+        help="CSV file with platform mean path length by env and measurement",
     )
     ap.add_argument(
-        "--panther-dir",
-        default="output/panther",
+        "--platform-dir",
+        default="results/traj",
         help="Directory with trajectory evaluation CSVs (summary_by_slice.csv, per_run_metrics.csv)",
     )
     ap.add_argument(
-        "--panther-only",
+        "--csvs-only",
         action="store_true",
-        help="Generate only trajectory-summary plots from panther CSVs (skip TF.json drawing)",
+        help="Generate only trajectory-summary plots from platform CSVs (skip TF.json drawing)",
     )
     ap.add_argument(
-        "--no-panther-summary",
+        "--no-platform-summary",
         action="store_true",
-        help="Disable additional summary plots from panther CSVs",
+        help="Disable additional summary plots from platform CSVs",
     )
     args = ap.parse_args()
 
@@ -924,12 +924,12 @@ def main() -> None:
     output_dir = Path(args.out_dir).resolve() if args.out_dir else input_dir / "trajectory_plots"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if not args.panther_only:
+    if not args.csvs_only:
         runs = load_runs(input_dir, args.filename, args.resample, args.min_poses)
         if not runs:
             raise SystemExit(f"No valid {args.filename} files found under {input_dir}")
 
-        summary = panther_mean_summary(Path(args.panther_csv), input_dir)
+        summary = platform_mean_summary(Path(args.platform_csv), input_dir)
 
         by_algo_mode: dict[tuple[str, str], list[TrajectoryRun]] = {}
         by_mode: dict[str, list[TrajectoryRun]] = {}
@@ -955,12 +955,12 @@ def main() -> None:
         if algorithm_means:
             plot_mean_summary(input_dir, output_dir, algorithm_means, summary)
 
-    if not args.no_panther_summary:
-        panther_dir = Path(args.panther_dir)
-        if not panther_dir.is_absolute():
-            panther_dir = (Path.cwd() / panther_dir).resolve()
-        summary_out = output_dir / "panther_summary"
-        generate_panther_summary_plots(panther_dir, summary_out)
+    if not args.no_platform_summary:
+        platform_dir = Path(args.platform_dir)
+        if not platform_dir.is_absolute():
+            platform_dir = (Path.cwd() / platform_dir).resolve()
+        summary_out = output_dir / "platform_summary"
+        generate_platform_summary_plots(platform_dir, summary_out)
 
 
 if __name__ == "__main__":
