@@ -517,21 +517,22 @@ def plot_mode_comparison_boxplot(
         bp = ax.boxplot(
             groups,
             patch_artist=True,
-            widths=0.45,
-            medianprops=dict(color="black", linewidth=1.5),
+            widths=0.46,
+            medianprops=dict(color="black", linewidth=1.4),
             whiskerprops=dict(linewidth=1.0),
             capprops=dict(linewidth=1.0),
-            flierprops=dict(marker="o", markersize=3, alpha=0.5),
+            flierprops=dict(marker="o", markersize=2.8, alpha=0.45),
         )
-        for patch, mode in zip(bp["boxes"], ("amcl", "no_amcl")):
+        mode_order = ["amcl", "no_amcl"][: len(groups)]
+        for patch, mode in zip(bp["boxes"], mode_order):
             patch.set_facecolor(MODE_COLORS[mode])
-            patch.set_alpha(0.7)
+            patch.set_alpha(0.72)
 
-        ax.set_xticks([1, 2][: len(groups)])
+        ax.set_xticks(range(1, len(tick_labels) + 1))
         ax.set_xticklabels(tick_labels)
         ax.set_ylabel("Pairwise IoU")
         ax.set_title(algo)
-        ax.grid(True, axis="y", linestyle="-.", alpha=0.3, linewidth=0.5)
+        ax.grid(True, axis="y", linestyle="-.", alpha=0.3)
         ax.set_ylim(-0.02, 1.05)
 
     # hide unused subplots
@@ -675,12 +676,12 @@ def plot_combined_faceted_mean_ci(
     dpi: int,
 ) -> None:
     """
-    Faceted mean IoU ± 95% CI grid.
+    Faceted pairwise IoU boxplot grid.
     Rows = unique (env, measurement_no) slices, columns = algorithms.
-    Within each cell: two points (AMCL orange, no-AMCL blue).
+    Within each cell: AMCL vs no-AMCL boxplots.
     """
-    slices  = sorted({(e, m) for e, m, *_ in matrices})
-    algos   = sorted({a for _, _, a, _ in matrices})
+    slices = sorted({(e, m) for e, m, *_ in matrices})
+    algos  = sorted({a for _, _, a, _ in matrices})
     if not slices or not algos:
         return
 
@@ -696,42 +697,45 @@ def plot_combined_faceted_mean_ci(
     for r_idx, (env, meas) in enumerate(slices):
         for c_idx, algo in enumerate(algos):
             ax = axes[r_idx][c_idx]
-            plotted = False
-            for m_idx, mode in enumerate(("amcl", "no_amcl")):
+            groups = []
+            labels = []
+            for mode in ("amcl", "no_amcl"):
                 key = (env, meas, algo, mode)
                 if key not in matrices:
                     continue
                 M, _ = matrices[key]
                 vals = upper_triangle_values(M)
-                if vals.size == 0:
-                    continue
-                mean_v = float(np.nanmean(vals))
-                lo, hi = bootstrap_ci_mean(vals)
-                ax.errorbar(
-                    [m_idx],
-                    [mean_v],
-                    yerr=[[max(0.0, mean_v - lo)], [max(0.0, hi - mean_v)]],
-                    fmt="o",
-                    color=MODE_COLORS[mode],
-                    capsize=4,
-                    markersize=5,
-                    linewidth=1.2,
-                    label=MODE_LABELS[mode],
-                )
-                plotted = True
+                vals = vals[np.isfinite(vals)]
+                if vals.size:
+                    groups.append(vals)
+                    labels.append(MODE_LABELS[mode])
 
-            ax.set_xlim(-0.6, 1.6)
+            if not groups:
+                ax.text(0.5, 0.5, "no data", transform=ax.transAxes,
+                        ha="center", va="center", color="gray", fontsize=8)
+            else:
+                bp = ax.boxplot(
+                    groups,
+                    patch_artist=True,
+                    widths=0.46,
+                    medianprops=dict(color="black", linewidth=1.4),
+                    whiskerprops=dict(linewidth=1.0),
+                    capprops=dict(linewidth=1.0),
+                    flierprops=dict(marker="o", markersize=2.8, alpha=0.45),
+                )
+                mode_order = ["amcl", "no_amcl"][: len(groups)]
+                for patch, mode in zip(bp["boxes"], mode_order):
+                    patch.set_facecolor(MODE_COLORS[mode])
+                    patch.set_alpha(0.72)
+                ax.set_xticks(range(1, len(labels) + 1))
+                ax.set_xticklabels(labels, fontsize=7)
+
             ax.set_ylim(-0.02, 1.05)
-            ax.set_xticks([0, 1])
-            ax.set_xticklabels(["AMCL", "no AMCL"], fontsize=7)
-            ax.grid(True, axis="y", linestyle="-.", alpha=0.3, linewidth=0.5)
+            ax.grid(True, axis="y", linestyle="-.", alpha=0.3)
             if r_idx == 0:
                 ax.set_title(algo, fontsize=9, fontweight="bold")
             if c_idx == 0:
-                ax.set_ylabel(f"{env}-{meas}\nMean IoU", fontsize=8)
-            if not plotted:
-                ax.text(0.5, 0.5, "no data", transform=ax.transAxes,
-                        ha="center", va="center", color="gray", fontsize=8)
+                ax.set_ylabel(f"{env}-{meas}\nPairwise IoU", fontsize=8)
 
     fig.suptitle("Map Repeatability – faceted by env / measurement",
                  fontsize=11, fontweight="bold")
@@ -870,64 +874,145 @@ def plot_combined_algo_mean_ci_by_slice(
     dpi: int,
 ) -> None:
     """
-    One figure per algorithm: mean IoU ± 95% CI for every (env, measurement_no)
-    slice, with AMCL and no-AMCL shown side by side.  Gives an at-a-glance
-    overview of repeatability stability across measurement campaigns.
+    One subplot per algorithm: AMCL vs no-AMCL boxplots of pairwise IoU values
+    aggregated across all (env, measurement_no) slices.  Matches the per-run
+    boxplot layout used in plot_tf_trajectories.py.
     """
-    algos  = sorted({a for _, _, a, _ in matrices})
+    algos = sorted({a for _, _, a, _ in matrices})
+    if not algos:
+        return
+
+    n = len(algos)
+    ncols = min(3, n)
+    nrows = (n + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4.2 * ncols, 3.6 * nrows), dpi=dpi, squeeze=False)
+
+    for idx, algo in enumerate(algos):
+        ax = axes[idx // ncols][idx % ncols]
+        groups = []
+        labels = []
+        for mode in ("amcl", "no_amcl"):
+            vals_list = [
+                upper_triangle_values(M)
+                for (e, ms, a, mo), (M, _) in matrices.items()
+                if a == algo and mo == mode
+            ]
+            if not vals_list:
+                continue
+            vals = np.concatenate(vals_list)
+            vals = vals[np.isfinite(vals)]
+            if vals.size:
+                groups.append(vals)
+                labels.append(MODE_LABELS[mode])
+
+        if not groups:
+            ax.set_visible(False)
+            continue
+
+        bp = ax.boxplot(
+            groups,
+            patch_artist=True,
+            widths=0.46,
+            medianprops=dict(color="black", linewidth=1.4),
+            whiskerprops=dict(linewidth=1.0),
+            capprops=dict(linewidth=1.0),
+            flierprops=dict(marker="o", markersize=2.8, alpha=0.45),
+        )
+        mode_order = ["amcl", "no_amcl"][: len(groups)]
+        for patch, mode in zip(bp["boxes"], mode_order):
+            patch.set_facecolor(MODE_COLORS[mode])
+            patch.set_alpha(0.72)
+
+        ax.set_xticks(range(1, len(labels) + 1))
+        ax.set_xticklabels(labels)
+        ax.set_title(algo)
+        ax.set_ylabel("Pairwise IoU")
+        ax.set_ylim(-0.02, 1.05)
+        ax.grid(True, axis="y", linestyle="-.", alpha=0.3)
+
+    for idx in range(n, nrows * ncols):
+        axes[idx // ncols][idx % ncols].set_visible(False)
+
+    fig.suptitle("Map Repeatability: AMCL vs no-AMCL (all slices)", fontsize=12, fontweight="bold")
+    fig.tight_layout()
+    fig.savefig(out_dir / "combined_algo_iou_boxplot.png", dpi=dpi)
+    plt.close(fig)
+    print("  saved combined algo IoU boxplot")
+
+
+def plot_combined_algo_iou_boxplot_by_slice(
+    matrices: dict[tuple[str, str, str, str], tuple[np.ndarray, list[str]]],
+    out_dir: Path,
+    dpi: int,
+) -> None:
+    """
+    One figure per algorithm: one subplot per (env, measurement_no) slice,
+    each showing AMCL vs no-AMCL pairwise IoU boxplots.
+    """
+    algos = sorted({a for _, _, a, _ in matrices})
     slices = sorted({(e, m) for e, m, *_ in matrices})
     if not algos or not slices:
         return
 
-    x = np.arange(len(slices))
-    slice_labels = [_slice_label(e, m) for e, m in slices]
-
     for algo in algos:
-        fig, ax = plt.subplots(
-            figsize=(max(4.0, len(slices) * 1.3), 3.5), dpi=dpi
+        n = len(slices)
+        ncols = min(3, n)
+        nrows = (n + ncols - 1) // ncols
+        fig, axes = plt.subplots(
+            nrows, ncols,
+            figsize=(4.2 * ncols, 3.6 * nrows),
+            dpi=dpi,
+            squeeze=False,
         )
-        offset = 0.14
-        for m_idx, mode in enumerate(("amcl", "no_amcl")):
-            means, lo_err, hi_err = [], [], []
-            for env, meas in slices:
+
+        for idx, (env, meas) in enumerate(slices):
+            ax = axes[idx // ncols][idx % ncols]
+            groups = []
+            labels = []
+            for mode in ("amcl", "no_amcl"):
                 key = (env, meas, algo, mode)
                 if key not in matrices:
-                    means.append(float("nan"))
-                    lo_err.append(float("nan"))
-                    hi_err.append(float("nan"))
                     continue
                 M, _ = matrices[key]
                 vals = upper_triangle_values(M)
-                mean_v = float(np.nanmean(vals)) if vals.size else float("nan")
-                lo, hi = bootstrap_ci_mean(vals) if vals.size else (float("nan"), float("nan"))
-                means.append(mean_v)
-                lo_err.append(max(0.0, mean_v - lo))
-                hi_err.append(max(0.0, hi - mean_v))
+                vals = vals[np.isfinite(vals)]
+                if vals.size:
+                    groups.append(vals)
+                    labels.append(MODE_LABELS[mode])
 
-            means_arr = np.array(means)
-            yerr = np.vstack([lo_err, hi_err])
-            valid = np.isfinite(means_arr)
-            xs = x + offset * (m_idx - 0.5)
-            ax.errorbar(
-                xs[valid], means_arr[valid],
-                yerr=yerr[:, valid],
-                fmt="o",
-                color=MODE_COLORS[mode],
-                label=MODE_LABELS[mode],
-                capsize=4, linewidth=1.2, markersize=5,
+            if not groups:
+                ax.set_visible(False)
+                continue
+
+            bp = ax.boxplot(
+                groups,
+                patch_artist=True,
+                widths=0.46,
+                medianprops=dict(color="black", linewidth=1.4),
+                whiskerprops=dict(linewidth=1.0),
+                capprops=dict(linewidth=1.0),
+                flierprops=dict(marker="o", markersize=2.8, alpha=0.45),
             )
+            mode_order = ["amcl", "no_amcl"][: len(groups)]
+            for patch, mode in zip(bp["boxes"], mode_order):
+                patch.set_facecolor(MODE_COLORS[mode])
+                patch.set_alpha(0.72)
 
-        ax.set_xticks(x)
-        ax.set_xticklabels(slice_labels, rotation=30, ha="right", fontsize=8)
-        ax.set_ylabel("Mean pairwise IoU")
-        ax.set_title(f"Mean IoU by measurement slice – {algo}")
-        ax.set_ylim(-0.02, 1.05)
-        ax.grid(True, axis="y", linestyle="-.", alpha=0.3, linewidth=0.5)
-        ax.legend(frameon=False)
+            ax.set_xticks(range(1, len(labels) + 1))
+            ax.set_xticklabels(labels)
+            ax.set_title(_slice_label(env, meas))
+            ax.set_ylabel("Pairwise IoU")
+            ax.set_ylim(-0.02, 1.05)
+            ax.grid(True, axis="y", linestyle="-.", alpha=0.3)
+
+        for idx in range(n, nrows * ncols):
+            axes[idx // ncols][idx % ncols].set_visible(False)
+
+        fig.suptitle(f"Map Repeatability by slice – {algo}", fontsize=12, fontweight="bold")
         fig.tight_layout()
-        fig.savefig(out_dir / f"{sanitize(algo)}_mean_ci_by_slice.png", dpi=dpi)
+        fig.savefig(out_dir / f"{sanitize(algo)}_iou_boxplot_by_slice.png", dpi=dpi)
         plt.close(fig)
-        print(f"  saved mean+CI by slice: {algo}")
+        print(f"  saved IoU boxplot by slice: {algo}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1065,6 +1150,7 @@ def _run_combined_pipeline(
     plot_combined_faceted_mean_ci(matrices, out_dir, args.dpi)
     plot_combined_cross_env_profiles(matrices, out_dir, args.dpi)
     plot_combined_algo_mean_ci_by_slice(matrices, out_dir, args.dpi)
+    plot_combined_algo_iou_boxplot_by_slice(matrices, out_dir, args.dpi)
     if summary is not None:
         plot_combined_cliffs_delta_heatmap(summary, out_dir, args.dpi)
 
