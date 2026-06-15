@@ -883,6 +883,76 @@ def plot_custom_environment_platform_measurement_overlay(runs: list[TfRun], out_
         save_figure(fig, out_dir / "custom" / sanitize_filename(filename), dpi)
 
 
+def plot_custom_environment_trajectory_overlap(
+    runs: list[TfRun],
+    out_dir: Path,
+    dpi: int,
+    oriented: bool = False,
+) -> None:
+    by_environment_group: dict[tuple[str, str, str], list[TfRun]] = {}
+    for run in runs:
+        by_environment_group.setdefault((run.environment, run.platform, run.measurement_no), []).append(run)
+
+    environments = sorted({key[0] for key in by_environment_group})
+    for environment in environments:
+        mean_trajectories: list[tuple[str, str, str, np.ndarray]] = []
+        for _, platform, measurement_no in sorted(key for key in by_environment_group if key[0] == environment):
+            group = sorted(
+                by_environment_group[(environment, platform, measurement_no)],
+                key=lambda item: (item.algorithm, item.mode, int(item.iteration)),
+            )
+            aligned = aligned_resampled_trajectories(group)
+            if not aligned:
+                continue
+            mean_xy = np.stack(aligned, axis=0).mean(axis=0)
+            mean_trajectories.append((platform, measurement_no, f"{platform}_{measurement_no}", mean_xy))
+
+        if not mean_trajectories:
+            continue
+
+        if oriented:
+            reference = mean_trajectories[0][3]
+            mean_trajectories = [
+                (platform, measurement_no, label, mean_xy if idx == 0 else align_se2(mean_xy, reference))
+                for idx, (platform, measurement_no, label, mean_xy) in enumerate(mean_trajectories)
+            ]
+
+        fig, ax = plt.subplots(figsize=(7, 7))
+        all_xy = []
+        for platform, measurement_no, label, mean_xy in mean_trajectories:
+            all_xy.append(mean_xy)
+            ax.plot(
+                mean_xy[:, 0],
+                mean_xy[:, 1],
+                color=platform_measurement_color(platform, measurement_no),
+                linestyle=MEASUREMENT_STYLES.get(measurement_no, "-"),
+                linewidth=0.9,
+                label=label,
+            )
+
+        xy_values = np.vstack(all_xy)
+        min_x, min_y = np.min(xy_values, axis=0)
+        max_x, max_y = np.max(xy_values, axis=0)
+        center_x = float((min_x + max_x) / 2.0)
+        center_y = float((min_y + max_y) / 2.0)
+        half_range = float(max(max_x - min_x, max_y - min_y) / 2.0)
+        half_range = max(half_range * 1.08, 0.2)
+
+        ax.set_xlim(center_x - half_range, center_x + half_range)
+        ax.set_ylim(center_y - half_range, center_y + half_range)
+        ax.set_aspect("equal", "box")
+        ax.grid(True, linestyle="-.", alpha=0.3)
+        ax.set_xlabel("x [m]")
+        ax.set_ylabel("y [m]")
+        title_suffix = " aligned SE(2)" if oriented else ""
+        ax.set_title(f"Mean trajectory overlap{title_suffix}", fontweight="bold")
+        ax.legend(loc="best", fontsize=8, title=f"Environment {environment}")
+
+        filename_suffix = "_aligned" if oriented else ""
+        filename = f"{environment}_platform_measurement_mean_trajectory_overlap{filename_suffix}.png"
+        save_figure(fig, out_dir / "custom" / sanitize_filename(filename), dpi)
+
+
 def write_tables(runs: list[TfRun], pairwise_rows: list[dict[str, float | str]], out_dir: Path) -> None:
     metric_rows = []
     for run in runs:
@@ -950,6 +1020,8 @@ def generate_plots(runs: list[TfRun], out_dir: Path, dpi: int, plot_individual_g
     plot_custom_mean_angular_velocity_by_environment(runs, out_dir, dpi)
     plot_custom_platform_measurement_velocity_pairs(runs, out_dir, dpi)
     plot_custom_environment_platform_measurement_overlay(runs, out_dir, dpi)
+    plot_custom_environment_trajectory_overlap(runs, out_dir, dpi)
+    plot_custom_environment_trajectory_overlap(runs, out_dir, dpi, oriented=True)
 
     return pairwise_rows
 
