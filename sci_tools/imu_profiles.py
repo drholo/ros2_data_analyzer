@@ -402,11 +402,11 @@ def plot_profile_group(
     fig, ax = plt.subplots(figsize=(10, 5))
     for run in runs:
         values = getattr(run, value_attr)
-        ax.plot(run.time_s, values, color=MODE_COLORS.get(run.mode, "#555555"), linewidth=0.75, alpha=0.35)
+        ax.plot(run.time_s, values, color=MODE_COLORS.get(run.mode, "#555555"), linewidth=0.5, alpha=0.3)
     mean_profile = np.stack([getattr(run, f"resampled_{value_attr}") for run in runs], axis=0).mean(axis=0)
     target = np.linspace(0.0, 100.0, len(mean_profile))
     ax2 = ax.twiny()
-    ax2.plot(target, mean_profile, color="black", linewidth=1.1, label="mean profile")
+    ax2.plot(target, mean_profile, color="black", linewidth=0.75, label="mean profile")
     ax2.set_xlabel("normalized run progress [%]")
     ax.grid(True, linestyle="-.", alpha=0.3)
     ax.set_xlabel("time [s]")
@@ -424,9 +424,9 @@ def plot_trajectory_overlap(runs: list[TfRun], out_dir: Path, dpi: int) -> None:
     fig, ax = plt.subplots(figsize=(7, 7))
     color = MODE_COLORS.get(runs[0].mode, "#555555")
     for xy in aligned:
-        ax.plot(xy[:, 0], xy[:, 1], color=color, linewidth=0.75, alpha=0.25)
+        ax.plot(xy[:, 0], xy[:, 1], color=color, linewidth=0.5, alpha=0.25)
     mean_xy = np.stack(aligned, axis=0).mean(axis=0)
-    ax.plot(mean_xy[:, 0], mean_xy[:, 1], color="black", linestyle="--", linewidth=1.1, label="mean")
+    ax.plot(mean_xy[:, 0], mean_xy[:, 1], color="black", linestyle="--", linewidth=0.75, label="mean")
     ax.set_aspect("equal", "box")
     ax.grid(True, linestyle="-.", alpha=0.3)
     ax.set_xlabel("x [m]")
@@ -470,7 +470,7 @@ def plot_spatial_deviation(runs: list[TfRun], out_dir: Path, dpi: int) -> None:
     fig, ax = plt.subplots(figsize=(10, 5))
     for (idx_a, run_a), (idx_b, run_b) in itertools.combinations(enumerate(runs), 2):
         distances = np.linalg.norm(aligned[idx_a] - aligned[idx_b], axis=1)
-        ax.plot(progress, distances, linewidth=0.55, alpha=0.25, color=MODE_COLORS.get(run_a.mode, "#555555"))
+        ax.plot(progress, distances, linewidth=0.3, alpha=0.25, color=MODE_COLORS.get(run_a.mode, "#555555"))
     mean_dist = np.mean(
         [
             np.linalg.norm(aligned[idx_a] - aligned[idx_b], axis=1)
@@ -478,7 +478,7 @@ def plot_spatial_deviation(runs: list[TfRun], out_dir: Path, dpi: int) -> None:
         ],
         axis=0,
     )
-    ax.plot(progress, mean_dist, color="black", linewidth=1.1, label="mean pairwise deviation")
+    ax.plot(progress, mean_dist, color="black", linewidth=0.75, label="mean pairwise deviation")
     ax.grid(True, linestyle="-.", alpha=0.3)
     ax.set_xlabel("normalized run progress [%]")
     ax.set_ylabel("spatial deviation [m]")
@@ -514,7 +514,7 @@ def plot_cross_platform_group(runs: list[TfRun], out_dir: Path, dpi: int) -> Non
             profile,
             color=PLATFORM_COLORS.get(platform, "#555555"),
             linestyle=MEASUREMENT_STYLES.get(measurement_no, "-"),
-            linewidth=1.0,
+            linewidth=0.75,
             label=label,
         )
     for label, profile, platform, measurement_no in aggregate_profile_by_platform_measurement(
@@ -525,7 +525,7 @@ def plot_cross_platform_group(runs: list[TfRun], out_dir: Path, dpi: int) -> Non
             profile,
             color=PLATFORM_COLORS.get(platform, "#555555"),
             linestyle=MEASUREMENT_STYLES.get(measurement_no, "-"),
-            linewidth=1.0,
+            linewidth=0.75,
             label=label,
         )
 
@@ -670,11 +670,11 @@ def plot_custom_time_profiles_by_environment(
                         mean_speed[valid],
                         color=color,
                         linestyle=style,
-                        linewidth=1.1,
+                        linewidth=0.75,
                         label=label,
                     )
 
-                ax.set_title(f"{algorithm} {mode.replace('_', ' ')}", fontweight="bold")
+                ax.set_title(f"{algorithm.title()} {mode.replace('_', ' ').upper()}", fontweight="bold")
                 ax.grid(True, linestyle="-.", alpha=0.3)
                 ax.set_xlabel("time [s]")
                 if mode_idx == 0:
@@ -689,7 +689,7 @@ def plot_custom_time_profiles_by_environment(
         for ax in axes.ravel():
             ax.set_ylim(*y_limits)
 
-        fig.suptitle(f"{title_metric}: environment {environment}", fontweight="bold")
+        fig.suptitle(f"{title_metric}: Environment {environment}", fontweight="bold")
         save_figure(fig, out_dir / "custom" / f"{environment}_{filename_metric}_by_algorithm_measurement.png", dpi)
 
 
@@ -767,7 +767,7 @@ def plot_custom_platform_measurement_velocity_pairs(runs: list[TfRun], out_dir: 
                             mean_speed[valid],
                             color=color,
                             linestyle=style,
-                            linewidth=1.1,
+                            linewidth=0.75,
                             label=label,
                         )
 
@@ -783,23 +783,23 @@ def plot_custom_platform_measurement_velocity_pairs(runs: list[TfRun], out_dir: 
                             mean_angular[valid],
                             color=color,
                             linestyle=style,
-                            linewidth=1.1,
+                            linewidth=0.75,
                             label=label,
                         )
 
-            axes[0].set_title(f"Mean linear velocity: {environment} {platform}_{measurement_no}", fontweight="bold")
+            axes[0].set_title(f"Mean linear velocity", fontweight="bold")
             axes[0].set_ylabel("velocity [m/s]")
             axes[0].set_ylim(0.0, max(0.1, max_speed * 1.08))
 
             angular_abs = max(abs(min_angular), abs(max_angular), 0.1)
-            axes[1].set_title(f"Mean angular velocity: {environment} {platform}_{measurement_no}", fontweight="bold")
+            axes[1].set_title(f"Mean angular velocity", fontweight="bold")
             axes[1].set_xlabel("time [s]")
             axes[1].set_ylabel("angular velocity [rad/s]")
             axes[1].set_ylim(-angular_abs * 1.08, angular_abs * 1.08)
 
             for ax in axes:
                 ax.grid(True, linestyle="-.", alpha=0.3)
-                ax.legend(loc="best", fontsize=8)
+            axes[0].legend(loc="best", fontsize=8, title=f"{platform} {environment}{measurement_no}")
 
             filename = f"{environment}_{platform}_{measurement_no}_mean_velocity_profiles.png"
             save_figure(fig, out_dir / "custom" / sanitize_filename(filename), dpi)
@@ -844,8 +844,8 @@ def plot_custom_environment_platform_measurement_overlay(runs: list[TfRun], out_
                         mean_speed[valid],
                         color=color,
                         linestyle=style,
-                        linewidth=0.7,
-                        alpha=0.42,
+                        linewidth=0.5,
+                        alpha=0.3,
                         label=label,
                     )
 
@@ -861,23 +861,23 @@ def plot_custom_environment_platform_measurement_overlay(runs: list[TfRun], out_
                         mean_angular[valid],
                         color=color,
                         linestyle=style,
-                        linewidth=0.7,
-                        alpha=0.42,
+                        linewidth=0.5,
+                        alpha=0.3,
                     )
 
-        axes[0].set_title(f"Mean linear velocity: environment {environment}", fontweight="bold")
+        axes[0].set_title(f"Mean linear velocity", fontweight="bold")
         axes[0].set_ylabel("velocity [m/s]")
         axes[0].set_ylim(0.0, max(0.1, max_speed * 1.08))
 
         angular_abs = max(abs(min_angular), abs(max_angular), 0.1)
-        axes[1].set_title(f"Mean angular velocity: environment {environment}", fontweight="bold")
+        axes[1].set_title(f"Mean angular velocity", fontweight="bold")
         axes[1].set_xlabel("time [s]")
         axes[1].set_ylabel("angular velocity [rad/s]")
         axes[1].set_ylim(-angular_abs * 1.08, angular_abs * 1.08)
 
         for ax in axes:
             ax.grid(True, linestyle="-.", alpha=0.3)
-        axes[0].legend(loc="best", fontsize=8, title="platform_meas")
+        axes[0].legend(loc="best", fontsize=8, title=f"Environment {environment}")
 
         filename = f"{environment}_all_platform_measurements_mean_velocity_profiles.png"
         save_figure(fig, out_dir / "custom" / sanitize_filename(filename), dpi)
