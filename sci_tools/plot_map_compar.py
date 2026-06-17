@@ -850,9 +850,9 @@ def plot_combined_cliffs_delta_heatmap(
     ax.set_yticks(range(n_rows))
     ax.set_xticklabels(slices, rotation=45, ha="right", fontsize=8)
     ax.set_yticklabels(algos, fontsize=8)
-    ax.set_xlabel("env – measurement")
+    ax.set_xlabel("Environment - measurement")
     ax.set_ylabel("Algorithm")
-    ax.set_title("Cliff's delta: AMCL vs no-AMCL  (+ = AMCL higher IoU)")
+    ax.set_title("IoU Cliff's delta: AMCL vs no-AMCL", fontweight="bold")
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Cliff's δ")
 
     for i in range(n_rows):
@@ -860,7 +860,7 @@ def plot_combined_cliffs_delta_heatmap(
             v = data[i, j]
             if np.isfinite(v):
                 ax.text(j, i, f"{v:+.2f}", ha="center", va="center",
-                        fontsize=7, color="white" if abs(v) > 0.5 else "black")
+                        fontsize=9, color="white" if abs(v) > 0.5 else "black")
 
     fig.tight_layout()
     fig.savefig(out_dir / "combined_cliffs_delta_heatmap.png", dpi=dpi)
