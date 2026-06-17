@@ -406,17 +406,21 @@ def plot_profile_group(
     fig, ax = plt.subplots(figsize=(10, 5))
     for run in runs:
         values = getattr(run, value_attr)
-        ax.plot(run.time_s, values, color=MODE_COLORS.get(run.mode, "#555555"), linewidth=0.5, alpha=0.3)
-    mean_profile = np.stack([getattr(run, f"resampled_{value_attr}") for run in runs], axis=0).mean(axis=0)
-    target = np.linspace(0.0, 100.0, len(mean_profile))
-    ax2 = ax.twiny()
-    ax2.plot(target, mean_profile, color="black", linewidth=0.75, label="mean profile")
-    ax2.set_xlabel("normalized run progress [%]")
-    ax.grid(True, linestyle="-.", alpha=0.3)
-    ax.set_xlabel("time [s]")
-    ax.set_ylabel(ylabel)
-    ax.set_title(f"{title_metric}: {group_label(runs[0].group_key)}", fontweight="bold")
-    ax2.legend(loc="best")
+        ax.plot(run.time_s, values, color=MODE_COLORS.get(run.mode, "#555555"), linewidth=0.7, alpha=0.5)
+    max_duration = max(run.time_s[-1] for run in runs)
+    time_grid = np.linspace(0.0, max_duration, 500)
+    stacked = np.vstack([
+        np.interp(time_grid, run.time_s, getattr(run, value_attr), left=np.nan, right=np.nan)
+        for run in runs
+    ])
+    mean_vals = np.nanmean(stacked, axis=0)
+    valid = np.sum(np.isfinite(stacked), axis=0) > 0
+    ax.plot(time_grid[valid], mean_vals[valid], color="black", linewidth=0.9, label="mean profile")
+    ax.grid(True, linestyle="-.", alpha=0.5)
+    ax.set_xlabel("time [s]", fontsize=14)
+    ax.set_ylabel(ylabel, fontsize=14)
+    ax.set_title(f"{title_metric}: {group_label(runs[0].group_key)}", fontweight="bold", fontsize=16)
+    ax.legend(loc="best", fontsize=14)
     name = f"{'_'.join(runs[0].group_key)}_{filename_suffix}.png"
     save_figure(fig, out_dir / sanitize_filename(name), dpi)
 
@@ -824,7 +828,7 @@ def plot_custom_environment_platform_measurement_overlay(runs: list[TfRun], out_
         if not keys:
             continue
 
-        fig, axes = plt.subplots(2, 1, figsize=(11, 7), sharex=True)
+        fig, axes = plt.subplots(2, 1, figsize=(18, 7), sharex=True)
         max_speed = 0.0
         min_angular = 0.0
         max_angular = 0.0
@@ -848,8 +852,8 @@ def plot_custom_environment_platform_measurement_overlay(runs: list[TfRun], out_
                         mean_speed[valid],
                         color=color,
                         linestyle=style,
-                        linewidth=0.5,
-                        alpha=0.3,
+                        linewidth=0.8,
+                        alpha=0.7,
                         label=label,
                     )
 
@@ -865,23 +869,23 @@ def plot_custom_environment_platform_measurement_overlay(runs: list[TfRun], out_
                         mean_angular[valid],
                         color=color,
                         linestyle=style,
-                        linewidth=0.5,
-                        alpha=0.3,
+                        linewidth=0.8,
+                        alpha=0.7,
                     )
 
-        axes[0].set_title(f"Mean linear velocity", fontweight="bold")
-        axes[0].set_ylabel("velocity [m/s]")
+        axes[0].set_title(f"Mean linear velocity", fontweight="bold", fontsize=18)
+        axes[0].set_ylabel("velocity [m/s]", fontsize=12)
         axes[0].set_ylim(0.0, max(0.1, max_speed * 1.08))
 
         angular_abs = max(abs(min_angular), abs(max_angular), 0.1)
-        axes[1].set_title(f"Mean angular velocity", fontweight="bold")
-        axes[1].set_xlabel("time [s]")
-        axes[1].set_ylabel("angular velocity [rad/s]")
+        axes[1].set_title(f"Mean angular velocity", fontweight="bold", fontsize=18)
+        axes[1].set_xlabel("time [s]", fontsize=12)
+        axes[1].set_ylabel("angular velocity [rad/s]", fontsize=12)
         axes[1].set_ylim(-angular_abs * 1.08, angular_abs * 1.08)
 
         for ax in axes:
-            ax.grid(True, linestyle="-.", alpha=0.3)
-        axes[0].legend(loc="best", fontsize=8, title=f"Environment {environment}")
+            ax.grid(True, linestyle="-.", alpha=0.5)
+        axes[0].legend(loc="best", fontsize=14, title=f"Environment {environment}", title_fontsize=16)
 
         filename = f"{environment}_all_platform_measurements_mean_velocity_profiles.png"
         save_figure(fig, out_dir / "custom" / sanitize_filename(filename), dpi)
@@ -945,12 +949,12 @@ def plot_custom_environment_trajectory_overlap(
         ax.set_xlim(center_x - half_range, center_x + half_range)
         ax.set_ylim(center_y - half_range, center_y + half_range)
         ax.set_aspect("equal", "box")
-        ax.grid(True, linestyle="-.", alpha=0.3)
-        ax.set_xlabel("x [m]")
-        ax.set_ylabel("y [m]")
-        title_suffix = " aligned SE(2)" if oriented else ""
-        ax.set_title(f"Mean trajectory overlap{title_suffix}", fontweight="bold")
-        ax.legend(loc="best", fontsize=8, title=f"Environment {environment}")
+        ax.grid(True, linestyle="-.", alpha=0.5)
+        ax.set_xlabel("x [m]", fontsize=14)
+        ax.set_ylabel("y [m]", fontsize=14)
+        title_suffix = "SE(2) aligned" if oriented else ""
+        ax.set_title(f"Mean trajectory overlap{title_suffix}", fontweight="bold", fontsize=16)
+        ax.legend(loc="best", fontsize=12, title=f"Environment {environment}", title_fontsize=14)
 
         filename_suffix = "_aligned" if oriented else ""
         filename = f"{environment}_platform_measurement_mean_trajectory_overlap{filename_suffix}.png"
