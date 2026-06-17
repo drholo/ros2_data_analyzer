@@ -1089,6 +1089,7 @@ def main() -> None:
         global _SHOW_PLOTS
         _SHOW_PLOTS = True
         plt.switch_backend("TkAgg")
+        matplotlib.rcParams["savefig.dpi"] = args.dpi
     pairwise_rows = generate_plots(runs, args.output_dir, dpi=args.dpi, plot_individual_groups=not args.summary_only)
     write_tables(runs, pairwise_rows, args.output_dir)
 
