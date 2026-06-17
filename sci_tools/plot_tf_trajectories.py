@@ -429,7 +429,7 @@ def plot_delta_heatmap(
     data = grid.to_numpy(dtype=float)
     fig, ax = plt.subplots(
         figsize=(max(4.0, len(slice_labels) * 0.95), max(2.5, len(algos) * 0.8)),
-        dpi=220,
+        dpi=300,
     )
     im = ax.imshow(data, vmin=-1.0, vmax=1.0, cmap="RdBu_r", aspect="auto")
     ax.set_xticks(range(len(slice_labels)))
@@ -451,12 +451,12 @@ def plot_delta_heatmap(
                     f"{val:+.2f}",
                     ha="center",
                     va="center",
-                    fontsize=7,
+                    fontsize=9,
                     color="white" if abs(val) > 0.5 else "black",
                 )
 
     fig.tight_layout()
-    fig.savefig(out_path, dpi=220)
+    fig.savefig(out_path, dpi=300)
     plt.close(fig)
     print(f"Saved plot to {out_path}")
 
@@ -978,7 +978,7 @@ def main() -> None:
         platform_dir = Path(args.platform_dir)
         if not platform_dir.is_absolute():
             platform_dir = (Path.cwd() / platform_dir).resolve()
-        summary_out = output_dir / "platform_summary"
+        summary_out = output_dir / f"platform_{platform_dir.name}_summary"
         generate_platform_summary_plots(platform_dir, summary_out)
 
 
