@@ -47,6 +47,8 @@ PLATFORM_MEASUREMENT_COLORS = {
 }
 MEASUREMENT_STYLES = {"1": "-", "2": "--"}
 
+_SHOW_PLOTS: bool = False
+
 
 @dataclass
 class TfRun:
@@ -366,6 +368,8 @@ def write_csv(path: Path, rows: list[dict[str, float | int | str]]) -> None:
 def save_figure(fig: plt.Figure, path: Path, dpi: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout()
+    if _SHOW_PLOTS:
+        plt.show(block=True)
     fig.savefig(path, dpi=dpi)
     plt.close(fig)
     print(f"Saved plot to {path}")
@@ -1049,6 +1053,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Only create cross-platform plots and CSVs; skip per platform/measurement group plots.",
     )
+    parser.add_argument(
+        "--show",
+        action="store_true",
+        help="Open an interactive window for every plot before saving it.",
+    )
     return parser
 
 
@@ -1072,6 +1081,10 @@ def main() -> None:
         ),
     )
     print(f"Loaded {len(runs)} TF runs from {args.input_root}")
+    if args.show:
+        global _SHOW_PLOTS
+        _SHOW_PLOTS = True
+        plt.switch_backend("TkAgg")
     pairwise_rows = generate_plots(runs, args.output_dir, dpi=args.dpi, plot_individual_groups=not args.summary_only)
     write_tables(runs, pairwise_rows, args.output_dir)
 
