@@ -18,27 +18,27 @@ Two input formats are supported and detected automatically:
 For every (algorithm, mode) pair [simple] or
     (env, measurement_no, algorithm, mode) slice [combined] the script produces:
 
-  1. Heatmap          – colour-coded NxN pairwise-IoU matrix.
-  2. IoU-profile plot – each run's sorted IoU vector (its "map edge") plus
+  1. Heatmap          - colour-coded NxN pairwise-IoU matrix.
+  2. IoU-profile plot - each run's sorted IoU vector (its "map edge") plus
                         the mean IoU profile ("mean edge"), analogous to the
                         trajectory overlay in plot_tf_trajectories.py.
-  3. MDS scatter      – 2-D projection via classical MDS of the distance
+  3. MDS scatter      - 2-D projection via classical MDS of the distance
                         matrix (1 - IoU); each dot is one run, the centroid
                         marks the "mean map".
 
 Across algorithms the script additionally creates:
 
-  4. Mode-comparison boxplot  – AMCL vs no-AMCL distribution side by side
+  4. Mode-comparison boxplot  - AMCL vs no-AMCL distribution side by side
                                 for every algorithm.
-  5. Mean+CI point plot       – per algorithm/mode, mean IoU ± 95% bootstrap CI.
+  5. Mean+CI point plot       - per algorithm/mode, mean IoU ± 95% bootstrap CI.
 
 Combined format adds:
 
-  6. Faceted mean+CI grid     – rows = environments, columns = algorithms,
+  6. Faceted mean+CI grid     - rows = environments, columns = algorithms,
                                 AMCL vs no-AMCL per cell.
-  7. Cross-env profiles       – AMCL and no-AMCL mean IoU profiles overlaid
+  7. Cross-env profiles       - AMCL and no-AMCL mean IoU profiles overlaid
                                 across all (env, measurement_no) slices per algo.
-  8. Cliff's delta heatmap    – algorithm × (env, measurement) grid showing
+  8. Cliff's delta heatmap    - algorithm × (env, measurement) grid showing
                                 effect-size direction from summary CSV.
 
 Usage
@@ -95,7 +95,7 @@ ALGO_COLORS = {
     "gmapping": "#2ca02c",
 }
 MODE_COLORS = {"amcl": "#e07b39", "no_amcl": "#5b8db8"}
-MODE_LABELS = {"amcl": "AMCL", "no_amcl": "no AMCL"}
+MODE_LABELS = {"amcl": "AMCL", "no_amcl": "no-AMCL"}
 
 
 def algo_color(name: str) -> str:
@@ -138,7 +138,7 @@ def parse_ci_string(s: str) -> tuple[float, float]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Data loading  –  format detection + loaders
+# Data loading  -  format detection + loaders
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Key types
@@ -334,7 +334,7 @@ def plot_heatmap(
     ax.set_yticks(range(N))
     ax.set_xticklabels(short, rotation=90)
     ax.set_yticklabels(short)
-    ax.set_title(f"Pairwise IoU – {algo} / {MODE_LABELS.get(mode, mode)}")
+    ax.set_title(f"Pairwise IoU - {algo} / {MODE_LABELS.get(mode, mode)}")
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="IoU")
     # annotate cells
     if N <= 12:
@@ -359,7 +359,7 @@ def plot_iou_profiles(
     dpi: int,
 ) -> None:
     """
-    IoU-profile plot – each run's sorted pairwise IoU vector ("map edge")
+    IoU-profile plot - each run's sorted pairwise IoU vector ("map edge")
     plus the mean profile ("mean edge").  Analogous to aligned trajectory
     overlays in plot_tf_trajectories.py.
     """
@@ -409,7 +409,7 @@ def plot_iou_profiles(
     ax.set_ylim(-0.02, 1.05)
     ax.set_xlabel("Neighbour rank (ascending IoU)")
     ax.set_ylabel("Pairwise IoU")
-    ax.set_title(f"IoU profiles – {algo} / {MODE_LABELS.get(mode, mode)}")
+    ax.set_title(f"IoU profiles - {algo} / {MODE_LABELS.get(mode, mode)}")
     ax.grid(True, linestyle="-.", alpha=0.3, linewidth=0.5)
     ax.legend(frameon=False)
     fig.tight_layout()
@@ -468,7 +468,7 @@ def plot_mds_scatter(
 
     ax.set_xlabel("MDS dim 1")
     ax.set_ylabel("MDS dim 2")
-    ax.set_title(f"MDS map-space – {algo} / {MODE_LABELS.get(mode, mode)}")
+    ax.set_title(f"MDS map-space - {algo} / {MODE_LABELS.get(mode, mode)}")
     ax.grid(True, linestyle="-.", alpha=0.3, linewidth=0.5)
     ax.legend(frameon=False)
     fig.tight_layout()
@@ -593,7 +593,7 @@ def plot_mean_ci_summary(
     ax.set_xticks(x)
     ax.set_xticklabels(algos, rotation=15, ha="right")
     ax.set_ylabel("Mean pairwise IoU")
-    ax.set_title("Map Repeatability – Mean IoU with 95% bootstrap CI")
+    ax.set_title("Map Repeatability - Mean IoU with 95% bootstrap CI")
     ax.set_ylim(-0.02, 1.05)
     ax.grid(True, axis="y", linestyle="-.", alpha=0.3, linewidth=0.5)
     ax.legend(frameon=False)
@@ -653,7 +653,7 @@ def plot_all_profiles_overlay(
         ax.set_ylim(-0.02, 1.05)
         ax.set_xlabel("Neighbour rank (ascending IoU)")
         ax.set_ylabel("Pairwise IoU")
-        ax.set_title(f"IoU profiles overlay – {algo}")
+        ax.set_title(f"IoU profiles overlay - {algo}")
         ax.grid(True, linestyle="-.", alpha=0.3, linewidth=0.5)
         ax.legend(frameon=False)
         fig.tight_layout()
@@ -728,17 +728,25 @@ def plot_combined_faceted_mean_ci(
                     patch.set_facecolor(MODE_COLORS[mode])
                     patch.set_alpha(0.72)
                 ax.set_xticks(range(1, len(labels) + 1))
-                ax.set_xticklabels(labels, fontsize=7)
+                ax.set_xticklabels(labels, fontsize=9, fontweight="medium")
+                ax.tick_params(axis="y", labelsize=9)
+
+            #
+            # ax.set_xticklabels(labels, fontsize=14, fontweight="medium")
+            # ax.tick_params(axis="y", labelsize=14)
+            # ax.set_title(algo, fontsize=15, fontweight="medium")
+            # ax.set_ylabel(y_label, fontsize=14, fontweight="medium")
+            #
 
             ax.set_ylim(-0.02, 1.05)
             ax.grid(True, axis="y", linestyle="-.", alpha=0.3)
             if r_idx == 0:
-                ax.set_title(algo, fontsize=9, fontweight="bold")
+                ax.set_title(algo, fontsize=10, fontweight="medium")
             if c_idx == 0:
-                ax.set_ylabel(f"{env}-{meas}\nPairwise IoU", fontsize=8)
+                ax.set_ylabel(f"{env}-{meas}\nPairwise IoU", fontsize=12, fontweight="medium")
 
-    fig.suptitle("Map Repeatability – faceted by env / measurement",
-                 fontsize=11, fontweight="bold")
+    fig.suptitle("Map Repeatability - faceted by env / measurement",
+                 fontsize=12, fontweight="bold")
     fig.tight_layout()
     fig.savefig(out_dir / "combined_faceted_mean_ci.png", dpi=dpi)
     plt.close(fig)
@@ -807,7 +815,7 @@ def plot_combined_cross_env_profiles(
                 ax.legend(frameon=False, fontsize=7,
                           title="env-meas", title_fontsize=7)
 
-        fig.suptitle(f"IoU profiles across environments – {algo}",
+        fig.suptitle(f"IoU profiles across environments - {algo}",
                      fontsize=11, fontweight="bold")
         fig.tight_layout()
         fig.savefig(out_dir / f"{sanitize(algo)}_cross_env_profiles.png", dpi=dpi)
@@ -999,16 +1007,17 @@ def plot_combined_algo_iou_boxplot_by_slice(
                 patch.set_alpha(0.72)
 
             ax.set_xticks(range(1, len(labels) + 1))
-            ax.set_xticklabels(labels)
-            ax.set_title(_slice_label(env, meas))
-            ax.set_ylabel("Pairwise IoU")
+            ax.set_xticklabels(labels, fontsize=14, fontweight="medium")
+            ax.tick_params(axis="y", labelsize=14)
+            ax.set_title(_slice_label(env, meas), fontsize=14, fontweight="medium")
+            ax.set_ylabel("Pairwise IoU", fontsize=14, fontweight="medium")
             ax.set_ylim(-0.02, 1.05)
             ax.grid(True, axis="y", linestyle="-.", alpha=0.3)
 
         for idx in range(n, nrows * ncols):
             axes[idx // ncols][idx % ncols].set_visible(False)
 
-        fig.suptitle(f"Map Repeatability by slice – {algo}", fontsize=12, fontweight="bold")
+        fig.suptitle(f"Map Repeatability by slice - {algo}", fontsize=16, fontweight="bold")
         fig.tight_layout()
         fig.savefig(out_dir / f"{sanitize(algo)}_iou_boxplot_by_slice.png", dpi=dpi)
         plt.close(fig)
