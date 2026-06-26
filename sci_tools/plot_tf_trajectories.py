@@ -520,10 +520,10 @@ def plot_faceted_mean_ci(
 
             ax.set_xlim(-0.6, 1.6)
             ax.set_xticks([0, 1])
-            ax.set_xticklabels(["AMCL", "no AMCL"], fontsize=8)
+            ax.set_xticklabels(["AMCL", "no-AMCL"], fontsize=10, fontweight="medium")
             ax.grid(True, axis="y", linestyle="-.", alpha=0.3)
             if r == 0:
-                ax.set_title(algo, fontsize=9, fontweight="bold")
+                ax.set_title(algo, fontsize=10, fontweight="medium")
             if c == 0:
                 ax.set_ylabel(f"{env}-{measurement_no}")
 
