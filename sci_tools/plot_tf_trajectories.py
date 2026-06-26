@@ -586,7 +586,7 @@ def plot_mean_ci_by_slice(
         valid_no = np.isfinite(means_no_arr)
 
         ax.plot(x[valid_amcl] - offset, means_amcl_arr[valid_amcl], "o", color=MODE_COLORS["amcl"], label="AMCL")
-        ax.plot(x[valid_no] + offset, means_no_arr[valid_no], "o", color=MODE_COLORS["no_amcl"], label="no AMCL")
+        ax.plot(x[valid_no] + offset, means_no_arr[valid_no], "o", color=MODE_COLORS["no_amcl"], label="no-AMCL")
 
         for i in range(len(x)):
             if np.isfinite(means_amcl_arr[i]) and np.isfinite(means_no_arr[i]):
