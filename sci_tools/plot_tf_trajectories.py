@@ -22,7 +22,7 @@ import pandas as pd
 
 LINE_WIDTH = 0.8
 MODE_COLORS = {"amcl": "#e07b39", "no_amcl": "#5b8db8"}
-MODE_LABELS = {"amcl": "AMCL", "no_amcl": "no AMCL"}
+MODE_LABELS = {"amcl": "AMCL", "no_amcl": "no-AMCL"}
 
 
 @dataclass
@@ -485,7 +485,7 @@ def plot_faceted_mean_ci(
         len(slices),
         len(algos),
         figsize=(max(3.0, len(algos) * 3.0), max(2.4, len(slices) * 2.2)),
-        dpi=220,
+        dpi=300,
         squeeze=False,
     )
 
@@ -539,7 +539,7 @@ def plot_faceted_mean_ci(
 
     fig.suptitle(title, fontsize=12, fontweight="bold")
     fig.tight_layout()
-    fig.savefig(out_path, dpi=220)
+    fig.savefig(out_path, dpi=300)
     plt.close(fig)
     print(f"Saved plot to {out_path}")
 
@@ -563,7 +563,7 @@ def plot_mean_ci_by_slice(
     slice_labels = [_slice_label(e, str(m)) for e, m in slices]
 
     for algo in sorted(summary_df["algorithm"].unique()):
-        fig, ax = plt.subplots(figsize=(max(4.0, len(slice_labels) * 1.2), 3.8), dpi=220)
+        fig, ax = plt.subplots(figsize=(max(4.0, len(slice_labels) * 1.2), 3.8), dpi=300)
         algo_rows = summary_df[summary_df["algorithm"] == algo].copy()
         means_amcl, means_no = [], []
         for env, measurement_no in slices:
@@ -601,7 +601,7 @@ def plot_mean_ci_by_slice(
         ax.legend(frameon=False)
         fig.tight_layout()
         out_path = out_dir / f"trajectory_{sanitize_filename(title_prefix)}_{sanitize_filename(algo)}_mean_by_slice.png"
-        fig.savefig(out_path, dpi=220)
+        fig.savefig(out_path, dpi=300)
         plt.close(fig)
         print(f"Saved plot to {out_path}")
 
@@ -625,7 +625,7 @@ def plot_per_run_metric_boxplots(
     n = len(algorithms)
     ncols = min(3, n)
     nrows = (n + ncols - 1) // ncols
-    fig, axes = plt.subplots(nrows, ncols, figsize=(4.2 * ncols, 3.6 * nrows), dpi=220, squeeze=False)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4.2 * ncols, 3.6 * nrows), dpi=300, squeeze=False)
 
     for idx, algo in enumerate(algorithms):
         ax = axes[idx // ncols][idx % ncols]
@@ -658,17 +658,18 @@ def plot_per_run_metric_boxplots(
             patch.set_alpha(0.72)
 
         ax.set_xticks(range(1, len(labels) + 1))
-        ax.set_xticklabels(labels)
-        ax.set_title(algo)
-        ax.set_ylabel(y_label)
-        ax.grid(True, axis="y", linestyle="-.", alpha=0.3)
+        ax.set_xticklabels(labels, fontsize=14, fontweight="medium")
+        ax.tick_params(axis="y", labelsize=14)
+        ax.set_title(algo, fontsize=15, fontweight="medium")
+        ax.set_ylabel(y_label, fontsize=14, fontweight="medium")
+        ax.grid(True, axis="y", linestyle="-.", alpha=0.5)
 
     for idx in range(n, nrows * ncols):
         axes[idx // ncols][idx % ncols].set_visible(False)
 
-    fig.suptitle(title, fontsize=12, fontweight="bold")
+    fig.suptitle(title, fontsize=16, fontweight="bold")
     fig.tight_layout()
-    fig.savefig(out_path, dpi=220)
+    fig.savefig(out_path, dpi=300)
     plt.close(fig)
     print(f"Saved plot to {out_path}")
 
@@ -690,7 +691,7 @@ def plot_mode_comparison_boxplot_metric(
         nrows,
         ncols,
         figsize=(4.0 * ncols, 3.5 * nrows),
-        dpi=220,
+        dpi=300,
         squeeze=False,
     )
 
@@ -735,7 +736,7 @@ def plot_mode_comparison_boxplot_metric(
 
     fig.suptitle(title, fontsize=11, fontweight="bold")
     fig.tight_layout()
-    fig.savefig(out_path, dpi=220)
+    fig.savefig(out_path, dpi=300)
     plt.close(fig)
     print(f"Saved plot to {out_path}")
 
@@ -751,7 +752,7 @@ def plot_mean_summary_metric(
         return
 
     x = np.arange(len(algorithms))
-    fig, ax = plt.subplots(figsize=(max(4.0, len(algorithms) * 1.4), 3.5), dpi=220)
+    fig, ax = plt.subplots(figsize=(max(4.0, len(algorithms) * 1.4), 3.5), dpi=300)
     offset = 0.15
 
     for mode_idx, mode in enumerate(("amcl", "no_amcl")):
@@ -790,7 +791,7 @@ def plot_mean_summary_metric(
     ax.grid(True, axis="y", linestyle="-.", alpha=0.3, linewidth=0.5)
     ax.legend(frameon=False)
     fig.tight_layout()
-    fig.savefig(out_path, dpi=220)
+    fig.savefig(out_path, dpi=300)
     plt.close(fig)
     print(f"Saved plot to {out_path}")
 
@@ -872,7 +873,7 @@ def generate_platform_summary_plots(platform_dir: Path, out_dir: Path) -> None:
                 per_run_df,
                 metric_col=metric_col,
                 y_label=y_label,
-                title=f"Per-run {y_label.lower()} by algorithm",
+                title=f"Per-run {y_label} by algorithm",
                 out_path=out_dir / f"per_run_boxplot_{slug}.png",
             )
 
