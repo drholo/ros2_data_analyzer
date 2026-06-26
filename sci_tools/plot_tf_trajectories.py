@@ -261,9 +261,11 @@ def style_for_index(index: int):
 def style_axes(ax: plt.Axes, title: str, limit_low: float, limit_high: float) -> None:
     ax.set_aspect("equal", "box")
     ax.grid(True, linestyle="-.", alpha=0.3)
-    ax.set_xlabel("x [m]", fontsize=12)
-    ax.set_ylabel("y [m]", fontsize=12)
-    ax.set_title(title, fontsize=14, fontweight="bold")
+    ax.set_xlabel("x [m]", fontsize=16)
+    ax.set_ylabel("y [m]", fontsize=16)
+    ax.set_title(title, fontsize=20, fontweight="bold")
+    ax.tick_params(axis="both", which="major", labelsize=14)
+    ax.legend(loc="best", fontsize=16, frameon=False)
     ax.set_xlim(limit_low, limit_high)
     ax.set_ylim(limit_low, limit_high)
 
@@ -358,7 +360,7 @@ def plot_mode_summary(
             label=f"{algorithm} mean",
         )
 
-    ax.legend(loc="best", fontsize=11)
+    ax.legend(loc="best", fontsize=16)
     out_path = output_dir / f"tf_trajectories_all_algorithms_{sanitize_filename(mode)}.png"
     _save_figure(fig, out_path)
 
@@ -388,7 +390,7 @@ def plot_mean_summary(
             label=f"{name} mean",
             linewidth=LINE_WIDTH,
         )
-    ax.legend(loc="best", fontsize=11)
+    ax.legend(loc="best", fontsize=16)
     _save_figure(fig, output_dir / "tf_trajectories_algorithm_means.png")
 
 
