@@ -437,8 +437,8 @@ def plot_delta_heatmap(
     ax.set_xticklabels(slice_labels, rotation=35, ha="right")
     ax.set_yticklabels(algos)
     ax.set_title(title, fontsize=12, fontweight="bold")
-    ax.set_xlabel("Environment - measurement")
-    ax.set_ylabel("Algorithm")
+    # ax.set_xlabel("Environment - measurement")
+    # ax.set_ylabel("Algorithm")
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Cliff's delta")
 
     for i in range(len(algos)):
@@ -451,7 +451,7 @@ def plot_delta_heatmap(
                     f"{val:+.2f}",
                     ha="center",
                     va="center",
-                    fontsize=9,
+                    fontsize=10,
                     color="white" if abs(val) > 0.5 else "black",
                 )
 
